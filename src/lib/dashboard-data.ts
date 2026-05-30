@@ -1,13 +1,14 @@
 import { execFile, exec } from "child_process";
 import { existsSync } from "fs";
 import { promisify } from "util";
+import os from "os";
 
 import { AGENT_NAME } from "@/lib/brand";
 
 const execFileAsync = promisify(execFile);
 const execAsync = promisify(exec);
 
-const HERMES_BIN = process.env.HERMES_BIN ?? "/home/dscalez/.local/bin/hermes";
+const HERMES_BIN = process.env.HERMES_BIN ?? `${os.homedir()}/.local/bin/hermes`;
 
 export type KanbanStatus = "backlog" | "active" | "blocked" | "done";
 export type HermesTaskStatus =
@@ -292,7 +293,7 @@ async function isPortListening(port: number) {
 export async function getInstalledServices(): Promise<InstalledService[]> {
   const hermesPort = Number(process.env.HERMES_AGENT_PORT || "8642");
   const appPort = 3000;
-  const hermesHome = process.env.HERMES_HOME || "/home/dscalez/.hermes";
+  const hermesHome = process.env.HERMES_HOME || `${os.homedir()}/.hermes`;
   const appPath = process.cwd();
 
   const [hermesStatus, appListening, nginxListening] = await Promise.all([
@@ -307,7 +308,7 @@ export async function getInstalledServices(): Promise<InstalledService[]> {
       name: "Hermes Gateway",
       port: hermesPort,
       status: hermesStatus,
-      installPath: existsSync(hermesHome) ? hermesHome : "/home/dscalez/.hermes",
+      installPath: existsSync(hermesHome) ? hermesHome : `${os.homedir()}/.hermes`,
       source: "systemd",
       description: `OpenAI-compatible local agent gateway for ${AGENT_NAME} telemetry and completions.`,
     },

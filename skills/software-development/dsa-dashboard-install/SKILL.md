@@ -12,7 +12,7 @@ preferred_client: terminal
 
 # DSA Dashboard Install
 
-Use this skill when installing or reinstalling `~/DSA_Dashboard-*.zip` into `/home/dscalez/html`.
+Use this skill when installing or reinstalling `~/DSA_Dashboard-*.zip` into `~/html`, or the webroot of the web server being used.
 
 ## Known issue: interactive `setup.sh` vs piping
 The shipped `setup.sh` uses `read` without non-interactive fallbacks. If STDIN is not a TTY, prompts may be silently skipped and variables get shifted, causing bad `.env` values.
@@ -24,13 +24,13 @@ Two fixes:
 
 ```bash
 set -euo pipefail
-cd /home/dscalez/html
+cd ~/html
 
 python3 - <<'PY'
 import json, secrets
 from pathlib import Path
-html_dir = Path('/home/dscalez/html')
-vault = Path('/home/dscalez/vault')
+html_dir = Path.home() / 'html'
+vault = Path.home() / 'vault'
 vault.mkdir(parents=True, exist_ok=True)
 env = {
   'AUTH_SECRET': secrets.token_urlsafe(32),
@@ -100,7 +100,7 @@ curl -sS -o /dev/null -w 'health_%{http_code}' http://127.0.0.1:3000/api/hermes/
 
 ```bash
 latest_zip=~/DSA_Dashboard-$(date +%Y%m%d-%H%M).zip
-cd /home/dscalez/html && zip -r "$latest_zip" . -x "node_modules/*" ".next/*"
+cd ~/html && zip -r "$latest_zip" . -x "node_modules/*" ".next/*"
 ```
 
 ## Placeholder values to replace

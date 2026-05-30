@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { exec } from "child_process";
 import { promisify } from "util";
+import os from "os";
 
 const execAsync = promisify(exec);
 
@@ -32,14 +33,14 @@ async function getTelemetry(forceSync: boolean): Promise<Telemetry> {
     ...process.env,
     XDG_RUNTIME_DIR: "/run/user/1000",
     DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/1000/bus",
-    HOME: "/home/dscalez",
+    HOME: os.homedir(),
   };
 
   try {
     const [statusResult, skillsResult, pluginsResult] = await Promise.all([
-      execAsync("/home/dscalez/.local/bin/hermes status", { env: sysEnv }).catch(() => ({ stdout: "" })),
-      execAsync("/home/dscalez/.local/bin/hermes skills list | tail -n 2", { env: sysEnv }).catch(() => ({ stdout: "" })),
-      execAsync("/home/dscalez/.local/bin/hermes plugins list", { env: sysEnv }).catch(() => ({ stdout: "" })),
+      execAsync(`${os.homedir()}/.local/bin/hermes status`, { env: sysEnv }).catch(() => ({ stdout: "" })),
+      execAsync(`${os.homedir()}/.local/bin/hermes skills list | tail -n 2`, { env: sysEnv }).catch(() => ({ stdout: "" })),
+      execAsync(`${os.homedir()}/.local/bin/hermes plugins list`, { env: sysEnv }).catch(() => ({ stdout: "" })),
     ]);
 
     const statusOut = statusResult.stdout;

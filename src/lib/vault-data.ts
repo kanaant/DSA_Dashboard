@@ -1,5 +1,6 @@
 import fs from "fs/promises";
 import path from "path";
+import os from "os";
 
 // Types
 export interface VaultProject {
@@ -44,7 +45,7 @@ export interface VaultMeta {
 
 // Get the root vault path, jailed boundaries
 export function getVaultRoot(): string {
-  const root = process.env.VAULT_PATH || "/home/dscalez/vault";
+  const root = process.env.VAULT_PATH || `${os.homedir()}/vault`;
   return path.resolve(root);
 }
 

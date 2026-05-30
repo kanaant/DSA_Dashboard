@@ -384,16 +384,12 @@ export function LoginPanel() {
         {/* Footer Deck stats */}
         <div className="flex items-center justify-between border-t border-white/5 mt-4 pt-3.5 text-[10px] text-slate-500">
           <span className="inline-flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
             System Locked
           </span>
-          <Link 
-            href="/dashboard" 
-            className="font-bold text-slate-400 hover:text-white transition-colors duration-200 flex items-center gap-1 hover:underline underline-offset-4"
-          >
-            Enter Shell
-            <ArrowRight className="h-3 w-3" />
-          </Link>
+          <span className="font-semibold uppercase tracking-wider text-slate-400">
+            Authentication Required
+          </span>
         </div>
       </footer>
     </main>
