@@ -1,0 +1,81 @@
+@import "tailwindcss";
+@plugin "tailwindcss-animate";
+
+:root {
+  color-scheme: dark;
+  --background: #050816;
+  --foreground: #e9ecff;
+  --card: rgba(8, 13, 29, 0.8);
+  --card-foreground: #f5f7ff;
+  --popover: #090d1d;
+  --popover-foreground: #f5f7ff;
+  --primary: #8b5cf6;
+  --primary-foreground: #f8f7ff;
+  --secondary: #12203c;
+  --secondary-foreground: #eff4ff;
+  --muted: #0d1730;
+  --muted-foreground: #8d96b6;
+  --accent: #00d4ff;
+  --accent-foreground: #05111f;
+  --destructive: #ef4444;
+  --destructive-foreground: #fff6f6;
+  --border: rgba(148, 163, 184, 0.16);
+  --input: rgba(148, 163, 184, 0.18);
+  --ring: #8b5cf6;
+  --radius: 1rem;
+  --font-geist-sans: Arial, Helvetica, sans-serif;
+  --font-geist-mono: "Courier New", Courier, monospace;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 6px);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(139, 92, 246, 0.24), transparent 28%),
+    radial-gradient(circle at top right, rgba(0, 212, 255, 0.16), transparent 24%),
+    radial-gradient(circle at bottom, rgba(14, 165, 233, 0.12), transparent 28%),
+    linear-gradient(180deg, #050816 0%, #060b18 100%);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+::selection {
+  background: rgba(139, 92, 246, 0.32);
+  color: #fff;
+}
