@@ -48,14 +48,15 @@ Ask for:
 
 ## Setup Flow
 1. Confirm Node and npm exist.
-2. Confirm the Hermes gateway is available.
-3. Enable the Hermes API server in `~/.hermes/.env` following the onboarding doc.
+2. Confirm if the Hermes API gateway is already available and healthy using `curl -sS --max-time 3 http://127.0.0.1:8642/health`.
+3. If not healthy, enable the Hermes API server in `~/.hermes/.env` following the onboarding doc and restart the gateway service. **Warning**: Restarting the service severs your active connection. Once you resume, do **not** restart the gateway again.
 4. Fill the project `.env` from `env.example`.
 5. Run `./setup.sh`.
 6. Start the app with `npm run dev`.
 7. Validate the login page, dashboard routes, Hermes status endpoint, and branded icons.
 
 ## Common Pitfalls
+- **Gateway Restart Loops**: Running `systemctl --user restart hermes-gateway.service` will disconnect/kill your session. Always check health first. If `http://127.0.0.1:8642/health` is online, **do not** run the restart command. When resuming after a gateway restart, proceed straight to verifying health rather than looping.
 - Do not write placeholder credentials into `.env`.
 - Do not expose the Hermes bearer token in client-side code.
 - Do not skip the vault path; the dashboard expects a concrete storage location.

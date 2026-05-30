@@ -31,7 +31,18 @@ The setup flow should ask for:
 ## Hermes API enablement
 This step is required and must happen before dashboard setup so the app can reach the control plane on first run.
 
-Run these commands first, then confirm the status endpoint before proceeding:
+> [!IMPORTANT]
+> **PREVENT RESTART LOOPS**: Restarting the Hermes gateway will disconnect/kill the agent's active session.
+> 1. **Check First**: Run `curl -sS --max-time 3 http://127.0.0.1:8642/health` BEFORE attempting to enable the API or restart the gateway.
+> 2. **Skip if Online**: If the API is already healthy and reachable, **SKIP** this entire enablement and restart step to avoid unnecessary disconnect loops.
+> 3. **Expect Disconnect**: If you must restart the gateway, the connection will drop. When you resume, **do not** run the restart command again; simply verify the health check is active and proceed.
+
+First check if the API is already online:
+```bash
+curl -sS --max-time 3 http://127.0.0.1:8642/health
+```
+
+If the API is not online, run these commands:
 ```bash
 python3 - <<'PY'
 from pathlib import Path
@@ -62,7 +73,10 @@ for k, v in updates.items():
 (path).write_text('\n'.join(out) + '\n')
 PY
 
+# Note: The following command restarts the gateway service and will sever your agent connection.
+# When you resume, verify health instead of repeating this restart!
 systemctl --user restart hermes-gateway.service
+sleep 2
 hermes status
 curl -sS http://127.0.0.1:8642/health
 ```

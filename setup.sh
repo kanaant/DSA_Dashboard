@@ -148,7 +148,9 @@ path.write_text("\n".join(out) + "\n")
 PY
 
   echo "Hermes API settings updated in $HERMES_ENV_FILE"
-  echo "Restart the gateway and verify with: systemctl --user restart hermes-gateway.service && hermes status"
+  echo "CRITICAL: Restarting the Hermes gateway will sever any active agent connection."
+  echo "Verify if it's already online first with: curl -sS --max-time 3 http://127.0.0.1:8642/health"
+  echo "If offline, restart using: systemctl --user restart hermes-gateway.service && hermes status"
 }
 
 configure_nginx() {

@@ -80,7 +80,16 @@ for k, v in updates.items():
 path.write_text('\n'.join(out) + '\n')
 PY
 
-systemctl --user restart hermes-gateway.service
+# Verify health before restarting. If online, skip restart to prevent agent disconnect loops.
+if ! curl -sS --max-time 3 http://127.0.0.1:8642/health >/dev/null 2>&1; then
+  echo "Hermes gateway is offline or API server is disabled. Restarting..."
+  # Note: Restarting will sever the agent's connection. Once you resume, do not repeat this restart.
+  systemctl --user restart hermes-gateway.service
+  sleep 2
+else
+  echo "Hermes gateway is already online and healthy. Skipping service restart to prevent loop."
+fi
+
 npm install
 npm run dev
 ```
