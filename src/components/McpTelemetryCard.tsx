@@ -135,7 +135,7 @@ export function McpTelemetryCard({
       >
         {/* Heartbeat EKG Orbit halo */}
         <div
-          className={`absolute -inset-4 rounded-full border border-dashed transition-colors duration-500 ${
+          className={`absolute -inset-2.5 sm:-inset-4 rounded-full border border-dashed transition-colors duration-500 ${
             telemetry.online ? "border-[#00d4ff]/20 animate-spin" : "border-rose-500/20 animate-spin"
           }`}
           style={{ animationDuration: telemetry.online ? "35s" : "60s" }}
@@ -144,22 +144,22 @@ export function McpTelemetryCard({
         {/* Outer aura glowing pulse synced to latency rates */}
         {telemetry.online && telemetry.latency != null && (
           <div
-            className="absolute -inset-3 rounded-full bg-[#8b5cf6]/10 opacity-60 animate-ping"
+            className="absolute -inset-2 sm:-inset-3 rounded-full bg-[#8b5cf6]/10 opacity-60 animate-ping"
             style={{ animationDuration: `${Math.max(0.65, telemetry.latency / 100)}s` }}
           />
         )}
 
         {/* Glowing border ring */}
         <div
-          className={`absolute -inset-2 rounded-full border transition-all duration-500 ${
+          className={`absolute -inset-1.5 sm:-inset-2 rounded-full border transition-all duration-500 ${
             telemetry.online
               ? "border-[#00d4ff]/40 shadow-[0_0_12px_rgba(0,212,255,0.25)] group-hover:border-[#8b5cf6]/60"
               : "border-rose-500/50 shadow-[0_0_12px_rgba(244,63,94,0.3)] group-hover:border-rose-500/70"
           }`}
         />
 
-        {/* Circular Trigger Face (scaled to w-24 h-24 matching the agent profile layout) */}
-        <div className="relative w-24 h-24 rounded-full overflow-hidden border border-white/10 bg-slate-900 shadow-xl transition-all duration-500 flex items-center justify-center">
+        {/* Circular Trigger Face (scaled to w-14 h-14 sm:w-24 sm:h-24 matching the agent profile layout) */}
+        <div className="relative w-14 h-14 sm:w-24 sm:h-24 rounded-full overflow-hidden border border-white/10 bg-slate-900 shadow-xl transition-all duration-500 flex items-center justify-center">
           <div
             className={`absolute inset-0 bg-gradient-to-br transition-all duration-500 ${
               telemetry.online 
@@ -167,7 +167,7 @@ export function McpTelemetryCard({
                 : "from-rose-500/10 via-transparent to-slate-950/30 opacity-60"
             }`}
           />
-          <RadioTower className={`relative z-10 h-10 w-10 transition-colors duration-500 ${telemetry.online ? "text-[#00d4ff]" : "text-rose-400"}`} />
+          <RadioTower className={`relative z-10 h-6 w-6 sm:h-10 sm:w-10 transition-colors duration-500 ${telemetry.online ? "text-[#00d4ff]" : "text-rose-400"}`} />
         </div>
 
         {/* Latency Node indicator at bottom-right */}
@@ -183,12 +183,18 @@ export function McpTelemetryCard({
 
       {/* CONTEXT POPUP: MCP HUD STATUS MONITOR */}
       {isOpen && (
-        <div
-          ref={popoverRef}
-          className={`absolute top-32 w-80 bg-[#050816] border border-[#8b5cf6]/35 rounded-2xl p-5 shadow-[0_20px_50px_rgba(2,6,23,0.95),inset_0_1px_0_rgba(255,255,255,0.06)] text-left pointer-events-auto z-50 ${
-            popupClassName || "right-0"
-          }`}
-        >
+        <>
+          {/* Mobile Backdrop blur overlay */}
+          <div 
+            onClick={closePanel}
+            className="fixed inset-0 bg-black/75 backdrop-blur-md z-40 sm:hidden cursor-pointer" 
+          />
+          <div
+            ref={popoverRef}
+            className={`fixed inset-x-4 top-[10vh] sm:absolute sm:top-32 w-auto max-w-[340px] sm:w-80 mx-auto sm:mx-0 bg-[#050816] border border-[#8b5cf6]/35 rounded-2xl p-5 shadow-[0_20px_50px_rgba(2,6,23,0.95),inset_0_1px_0_rgba(255,255,255,0.06)] text-left pointer-events-auto z-50 ${
+              popupClassName || "sm:right-0"
+            }`}
+          >
           {/* Laser Top Accent */}
           <div className={`absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent ${telemetry.online ? "via-[#00d4ff]" : "via-rose-500"} to-transparent`} />
 
@@ -394,6 +400,7 @@ export function McpTelemetryCard({
             </div>
           </div>
         </div>
+      </>
       )}
     </div>
   );

@@ -23,17 +23,17 @@ export function HeaderTelemetryDeck({ agentUrl, agentApiKey }: HeaderTelemetryDe
 
   // Prevent popup cards from overlapping when both are open simultaneously
   // When ALONE: each aligns directly beneath its active circular trigger
-  // When BOTH open: MCP popup smoothly slides to the left of the Agent popup
+  // When BOTH open: MCP popup smoothly slides to the left of the Agent popup (on screens with enough width)
   const bothOpen = isMcpOpen && isAgentOpen;
 
   const mcpPopupClass = `transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-    bothOpen ? "right-[228px]" : "right-0"
+    bothOpen ? "sm:right-[228px] right-0" : "right-0"
   }`;
 
   const agentPopupClass = "transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] right-0";
 
   return (
-    <div className="relative flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-end">
+    <div className="relative flex flex-col items-center justify-center gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-6">
       <McpTelemetryCard 
         isOpen={isMcpOpen} 
         onToggle={toggleMcp} 
