@@ -1,12 +1,10 @@
-import { execFile, exec } from "child_process";
-import { existsSync } from "fs";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import os from "os";
 
 import { AGENT_NAME } from "@/lib/brand";
 
 const execFileAsync = promisify(execFile);
-const execAsync = promisify(exec);
 
 const HERMES_BIN = process.env.HERMES_BIN ?? `${os.homedir()}/.local/bin/hermes`;
 
@@ -261,17 +259,157 @@ export async function updateKanbanItem(
   return mapTaskToItem(refreshed);
 }
 
-async function getSystemdStatus(unit: string): Promise<InstalledService["status"]> {
-  try {
-    const { stdout } = await execAsync(`systemctl --user is-active ${unit}`, {
-      env: {
-        ...process.env,
-        XDG_RUNTIME_DIR: "/run/user/1000",
-        DBUS_SESSION_BUS_ADDRESS: "unix:path=/run/user/1000/bus",
-      },
-    });
+type SystemdScope = "system" | "user";
 
-    const state = stdout.trim();
+interface ServiceCandidate {
+  id: string;
+  name: string;
+  unit: string;
+  scope: SystemdScope;
+  port: number | null;
+  installPathFallback: string;
+  description: string;
+}
+
+const SERVICE_CANDIDATES: ServiceCandidate[] = [
+  {
+    id: "hermes-gateway",
+    name: `${AGENT_NAME} Hermes Gateway`,
+    unit: "hermes-gateway.service",
+    scope: "user",
+    port: Number(process.env.HERMES_AGENT_PORT || "8642"),
+    installPathFallback: `${os.homedir()}/.config/systemd/user/hermes-gateway.service`,
+    description: `OpenAI-compatible local agent gateway for ${AGENT_NAME} telemetry and completions.`,
+  },
+  {
+    id: "vera-dash",
+    name: `${AGENT_NAME} Dashboard`,
+    unit: "dsa-dashboard.service",
+    scope: "system",
+    port: 3000,
+    installPathFallback: "/etc/systemd/system/dsa-dashboard.service",
+    description: "Authenticated Next.js command dashboard served behind the local proxy.",
+  },
+  {
+    id: "ssh-server",
+    name: "OpenSSH Server",
+    unit: "ssh.service",
+    scope: "system",
+    port: 22,
+    installPathFallback: "/lib/systemd/system/ssh.service",
+    description: "Secure remote shell service for administrative access.",
+  },
+  {
+    id: "cron",
+    name: "Cron Scheduler",
+    unit: "cron.service",
+    scope: "system",
+    port: null,
+    installPathFallback: "/lib/systemd/system/cron.service",
+    description: "Time-based job scheduler used for recurring maintenance tasks.",
+  },
+  {
+    id: "chrony",
+    name: "Chrony Time Sync",
+    unit: "chrony.service",
+    scope: "system",
+    port: null,
+    installPathFallback: "/lib/systemd/system/chrony.service",
+    description: "NTP time synchronisation daemon keeping the system clock aligned.",
+  },
+  {
+    id: "php-fpm-8-4",
+    name: "PHP-FPM 8.4",
+    unit: "php8.4-fpm.service",
+    scope: "system",
+    port: null,
+    installPathFallback: "/lib/systemd/system/php8.4-fpm.service",
+    description: "FastCGI process manager for PHP-based site workloads.",
+  },
+  {
+    id: "open-vm-tools",
+    name: "Open VM Tools",
+    unit: "open-vm-tools.service",
+    scope: "system",
+    port: null,
+    installPathFallback: "/lib/systemd/system/open-vm-tools.service",
+    description: "Guest integration tools for virtualized environments.",
+  },
+  {
+    id: "modem-manager",
+    name: "ModemManager",
+    unit: "ModemManager.service",
+    scope: "system",
+    port: null,
+    installPathFallback: "/lib/systemd/system/ModemManager.service",
+    description: "Mobile broadband and modem control daemon.",
+  },
+  {
+    id: "multipathd",
+    name: "Multipath Daemon",
+    unit: "multipathd.service",
+    scope: "system",
+    port: null,
+    installPathFallback: "/lib/systemd/system/multipathd.service",
+    description: "Storage multipath coordination service for redundant block devices.",
+  },
+  {
+    id: "networkd-dispatcher",
+    name: "Networkd Dispatcher",
+    unit: "networkd-dispatcher.service",
+    scope: "system",
+    port: null,
+    installPathFallback: "/lib/systemd/system/networkd-dispatcher.service",
+    description: "Dispatch hooks for network interface state changes.",
+  },
+  {
+    id: "fwupd",
+    name: "Firmware Update Daemon",
+    unit: "fwupd.service",
+    scope: "system",
+    port: null,
+    installPathFallback: "/lib/systemd/system/fwupd.service",
+    description: "System firmware update service.",
+  },
+];
+
+function systemdEnv(scope: SystemdScope) {
+  if (scope !== "user") {
+    return process.env;
+  }
+
+  const uid = typeof process.getuid === "function" ? process.getuid() : 1000;
+  const runtimeDir = `/run/user/${uid}`;
+
+  return {
+    ...process.env,
+    XDG_RUNTIME_DIR: runtimeDir,
+    DBUS_SESSION_BUS_ADDRESS: `unix:path=${runtimeDir}/bus`,
+  };
+}
+
+async function runSystemctl(scope: SystemdScope, args: string[]) {
+  const { stdout } = await execFileAsync("systemctl", [...(scope === "user" ? ["--user"] : []), ...args], {
+    env: systemdEnv(scope),
+    maxBuffer: 1024 * 1024,
+  });
+
+  return stdout.trim();
+}
+
+async function getSystemdProperty(scope: SystemdScope, unit: string, property: string) {
+  try {
+    const value = await runSystemctl(scope, ["show", unit, "--property", property, "--value"]);
+    return value || null;
+  } catch {
+    return null;
+  }
+}
+
+async function getSystemdStatus(unit: string, scope: SystemdScope): Promise<InstalledService["status"]> {
+  try {
+    const state = await runSystemctl(scope, ["is-active", unit]);
+
     if (state === "active") return "online";
     if (state === "activating") return "starting";
     if (state === "inactive" || state === "failed") return "offline";
@@ -281,54 +419,29 @@ async function getSystemdStatus(unit: string): Promise<InstalledService["status"
   }
 }
 
-async function isPortListening(port: number) {
-  try {
-    const { stdout } = await execAsync(`ss -ltn '( sport = :${port} )'`);
-    return stdout.includes(`:${port}`);
-  } catch {
-    return false;
+async function inspectService(candidate: ServiceCandidate): Promise<InstalledService | null> {
+  const [loadState, status, fragmentPath] = await Promise.all([
+    getSystemdProperty(candidate.scope, candidate.unit, "LoadState"),
+    getSystemdStatus(candidate.unit, candidate.scope),
+    getSystemdProperty(candidate.scope, candidate.unit, "FragmentPath"),
+  ]);
+
+  if (loadState !== "loaded") {
+    return null;
   }
+
+  return {
+    id: candidate.id,
+    name: candidate.name,
+    port: candidate.port,
+    status,
+    installPath: fragmentPath || candidate.installPathFallback,
+    source: "systemd",
+    description: candidate.description,
+  };
 }
 
 export async function getInstalledServices(): Promise<InstalledService[]> {
-  const hermesPort = Number(process.env.HERMES_AGENT_PORT || "8642");
-  const appPort = 3000;
-  const hermesHome = process.env.HERMES_HOME || `${os.homedir()}/.hermes`;
-  const appPath = process.cwd();
-
-  const [hermesStatus, appListening, nginxListening] = await Promise.all([
-    getSystemdStatus("hermes-gateway.service"),
-    isPortListening(appPort),
-    isPortListening(80),
-  ]);
-
-  return [
-    {
-      id: "hermes-gateway",
-      name: "Hermes Gateway",
-      port: hermesPort,
-      status: hermesStatus,
-      installPath: existsSync(hermesHome) ? hermesHome : `${os.homedir()}/.hermes`,
-      source: "systemd",
-      description: `OpenAI-compatible local agent gateway for ${AGENT_NAME} telemetry and completions.`,
-    },
-    {
-      id: "dsa-dashboard",
-      name: `${AGENT_NAME} Dashboard`,
-      port: appPort,
-      status: appListening ? "online" : "unknown",
-      installPath: appPath,
-      source: "process",
-      description: "Authenticated Next.js command dashboard served behind the local proxy.",
-    },
-    {
-      id: "nginx-edge",
-      name: "Nginx Edge Proxy",
-      port: 80,
-      status: nginxListening ? "online" : "unknown",
-      installPath: "/etc/nginx",
-      source: "configured",
-      description: "LAN-facing reverse proxy forwarding dashboard traffic to the app runtime.",
-    },
-  ];
+  const services = await Promise.all(SERVICE_CANDIDATES.map((candidate) => inspectService(candidate)));
+  return services.filter((service): service is InstalledService => service !== null);
 }

@@ -1,4 +1,4 @@
-const FALLBACK_AGENT_NAME = "Agent";
+const FALLBACK_AGENT_NAME = "vera-dash";
 const FALLBACK_AGENT_AVATAR = "/def_avatar.png";
 
 function normalisePublicPath(value: string | undefined, fallback: string) {

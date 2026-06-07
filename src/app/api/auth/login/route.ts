@@ -6,6 +6,7 @@ import {
   getAuthCookieName,
   isValidAdminLogin,
 } from "@/lib/auth";
+import { getRequestOrigin } from "@/lib/request-origin";
 
 export const runtime = "nodejs";
 
@@ -14,7 +15,7 @@ export async function POST(request: Request) {
   const username = String(formData.get("username") ?? "").trim();
   const password = String(formData.get("password") ?? "");
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || request.url;
+  const appUrl = new URL(getRequestOrigin(request));
 
   if (!isValidAdminLogin(username, password)) {
     return NextResponse.redirect(

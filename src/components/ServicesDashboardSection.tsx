@@ -83,7 +83,7 @@ export function ServicesDashboardSection() {
                 Installed Service Registry
               </CardTitle>
               <CardDescription className="text-slate-400">
-                Runtime services exposed through a refreshable backend source for install, delete, and modify workflows.
+                Installed services discovered from local systemd user/system units and live port checks.
               </CardDescription>
             </div>
             <Button

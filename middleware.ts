@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
+import { getRequestOrigin } from "@/lib/request-origin";
+
 const AUTH_COOKIE_NAME = "darksenses_dashboard_session";
 
 function getSecretKey() {
@@ -31,17 +33,18 @@ async function isAuthenticated(request: NextRequest) {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const authed = await isAuthenticated(request);
+  const origin = getRequestOrigin(request);
 
   if (pathname === "/") {
-    return NextResponse.redirect(new URL(authed ? "/dashboard" : "/login", request.url));
+    return NextResponse.redirect(new URL(authed ? "/dashboard" : "/login", origin));
   }
 
   if (pathname.startsWith("/dashboard") && !authed) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    return NextResponse.redirect(new URL("/login", origin));
   }
 
   if (pathname === "/login" && authed) {
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(new URL("/dashboard", origin));
   }
 
   return NextResponse.next();
