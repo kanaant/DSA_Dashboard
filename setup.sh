@@ -97,6 +97,17 @@ HERMES_AGENT_API_KEY=$(quote_env_value "$HERMES_AGENT_API_KEY")
 HERMES_AGENT_MODEL_NAME=$(quote_env_value "$HERMES_AGENT_MODEL_NAME")
 HERMES_HOME=$(quote_env_value "$HERMES_HOME")
 VAULT_PATH=$(quote_env_value "$VAULT_PATH")
+WP_TOKEN=$(quote_env_value "$WP_TOKEN")
+WOOCOMMERCE_CONSUMER_KEY=$(quote_env_value "$WOOCOMMERCE_CONSUMER_KEY")
+WOOCOMMERCE_CONSUMER_SECRET=$(quote_env_value "$WOOCOMMERCE_CONSUMER_SECRET")
+MAQUIFIT_SSH_HOST=$(quote_env_value "$MAQUIFIT_SSH_HOST")
+MAQUIFIT_SSH_PORT=$(quote_env_value "$MAQUIFIT_SSH_PORT")
+MAQUIFIT_SSH_USER=$(quote_env_value "$MAQUIFIT_SSH_USER")
+MAQUIFIT_SSH_PASS=$(quote_env_value "$MAQUIFIT_SSH_PASS")
+MAQUIFIT_MCP_USER_KEY=$(quote_env_value "$MAQUIFIT_MCP_USER_KEY")
+WP_API_URL=$(quote_env_value "$WP_API_URL")
+WP_API_USERNAME=$(quote_env_value "$WP_API_USERNAME")
+WP_API_PASSWORD=$(quote_env_value "$WP_API_PASSWORD")
 EOF
 }
 
@@ -255,6 +266,17 @@ prompt_secret HERMES_AGENT_API_KEY "Hermes API key / bearer token"
 prompt_default HERMES_AGENT_MODEL_NAME "Hermes model name" "$DEFAULT_HERMES_MODEL"
 prompt_default HERMES_HOME "Hermes home path" "$HOME/.hermes"
 prompt_default EDGE_MODE "Web edge mode (nginx or existing)" "$DEFAULT_EDGE_MODE"
+prompt_secret WP_TOKEN "WordPress token"
+prompt_secret WOOCOMMERCE_CONSUMER_KEY "WooCommerce consumer key"
+prompt_secret WOOCOMMERCE_CONSUMER_SECRET "WooCommerce consumer secret"
+prompt_default MAQUIFIT_SSH_HOST "MaquiFit SSH host" "${MAQUIFIT_SSH_HOST:-}"
+prompt_default MAQUIFIT_SSH_PORT "MaquiFit SSH port" "${MAQUIFIT_SSH_PORT:-22}"
+prompt_default MAQUIFIT_SSH_USER "MaquiFit SSH user" "${MAQUIFIT_SSH_USER:-}"
+prompt_secret MAQUIFIT_SSH_PASS "MaquiFit SSH password"
+prompt_secret MAQUIFIT_MCP_USER_KEY "MaquiFit MCP user key"
+prompt_default WP_API_URL "WordPress MCP API URL" "${WP_API_URL:-}"
+prompt_default WP_API_USERNAME "WordPress MCP API username" "${WP_API_USERNAME:-}"
+prompt_secret WP_API_PASSWORD "WordPress MCP API password"
 
 mkdir -p "$VAULT_PATH"
 write_env_file

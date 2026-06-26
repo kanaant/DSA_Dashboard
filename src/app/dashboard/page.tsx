@@ -6,11 +6,12 @@ import {
   Radar, 
   Server, 
   Rows3, 
+  Search,
   ArrowUpRight, 
   Play
 } from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { getAuthCookieName, verifyAuthToken } from "@/lib/auth";
 import { ThreeBackground } from "@/components/ThreeBackground";
 import { DashboardNavBar } from "@/components/DashboardNavBar";
@@ -19,6 +20,26 @@ import { getInstalledServices, getKanbanItems } from "@/lib/dashboard-data";
 import type { InstalledService, KanbanItem } from "@/lib/dashboard-data";
 import { getProjects } from "@/lib/vault-data";
 import { AGENT_NAME } from "@/lib/brand";
+
+function getSeoCredentialStatus() {
+  const credentials = [
+    { key: "WP_TOKEN" as const, label: "WordPress token" },
+    { key: "WOOCOMMERCE_CONSUMER_KEY" as const, label: "Woo key" },
+    { key: "WOOCOMMERCE_CONSUMER_SECRET" as const, label: "Woo secret" },
+    { key: "MAQUIFIT_SSH_HOST" as const, label: "SSH host" },
+    { key: "MAQUIFIT_SSH_PORT" as const, label: "SSH port" },
+    { key: "MAQUIFIT_SSH_USER" as const, label: "SSH user" },
+    { key: "MAQUIFIT_SSH_PASS" as const, label: "SSH pass" },
+    { key: "MAQUIFIT_MCP_USER_KEY" as const, label: "MCP user key" },
+    { key: "WP_API_URL" as const, label: "WP API URL" },
+    { key: "WP_API_USERNAME" as const, label: "WP API user" },
+    { key: "WP_API_PASSWORD" as const, label: "WP API pass" },
+  ] as const;
+
+  const configured = credentials.filter(({ key }) => Boolean(process.env[key])).length;
+
+  return { configured, total: credentials.length };
+}
 
 export const dynamic = "force-dynamic";
 
@@ -48,8 +69,7 @@ export default async function DashboardPage() {
   // Fetch telemetry server-side
   let services: InstalledService[] = [];
   let kanbanItems: KanbanItem[] = [];
-  let vaultProjects: any[] = [];
-  
+  let vaultProjects: Awaited<ReturnType<typeof getProjects>> = [];  
   try {
     services = await getInstalledServices();
   } catch (err) {
@@ -73,11 +93,11 @@ export default async function DashboardPage() {
   const activeCount = kanbanItems.filter((i) => i.status === "active").length;
   const blockedCount = kanbanItems.filter((i) => i.status === "blocked").length;
   const doneCount = kanbanItems.filter((i) => i.status === "done").length;
-  const totalTasks = kanbanItems.length;
 
   const totalProjects = vaultProjects.length;
   const totalVaultFiles = vaultProjects.reduce((acc, p) => acc + (p.fileCount || 0), 0);
   const totalAgentVaultFiles = vaultProjects.reduce((acc, p) => acc + (p.agentFileCount || 0), 0);
+  const seoCredentialStatus = getSeoCredentialStatus();
 
   return (
     <>
@@ -128,7 +148,7 @@ export default async function DashboardPage() {
           </header>
 
           {/* Dynamic Summary Cards Row */}
-          <section className="grid gap-6 lg:grid-cols-3 md:grid-cols-2">
+          <section className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
             
             {/* Services running summary card */}
             <Link href="/dashboard/services" className="group block focus:outline-none">
@@ -243,8 +263,56 @@ export default async function DashboardPage() {
               </Card>
             </Link>
 
+            {/* MaquiFit SEO summary card */}
+            <Link href="/dashboard/seo" className="group block focus:outline-none">
+              <Card className="relative overflow-hidden border-white/10 bg-slate-950/45 p-6 backdrop-blur-2xl shadow-[0_20px_50px_rgba(2,6,23,0.7)] hover:border-[#22c55e]/40 transition-all duration-300 rounded-3xl h-full flex flex-col justify-between">
+                <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#22c55e]/40 to-transparent" />
+                <div className="absolute inset-0 -z-10 bg-gradient-to-br from-[#22c55e]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#22c55e]/30 bg-[#22c55e]/10 text-[#22c55e] shadow-[0_0_15px_rgba(34,197,94,0.2)]">
+                      <Search className="h-5 w-5" />
+                    </div>
+                    <div className="flex items-center gap-1.5 rounded-full border border-[#22c55e]/25 bg-[#22c55e]/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-emerald-300">
+                      SCHEMA staged
+                    </div>
+                  </div>
+
+                  <h2 className="text-xl font-bold text-white tracking-wide flex items-center gap-2 group-hover:text-[#4ade80] transition-colors duration-200">
+                    MaquiFit SEO
+                    <ArrowUpRight className="w-5 h-5 opacity-40 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all duration-200" />
+                  </h2>
+                  <p className="mt-2 text-sm text-slate-400 leading-relaxed">
+                    Prepare the WordPress, WooCommerce, SSH, and MCP connections for the future SEO control panel. No live SEO content is loaded yet.
+                  </p>
+
+                  <div className="mt-8 grid grid-cols-2 gap-4">
+                    <div className="rounded-2xl border border-white/5 bg-slate-900/30 p-4">
+                      <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">Credentials</div>
+                      <div className="mt-1 text-3xl font-extrabold text-white tracking-tight">
+                        {seoCredentialStatus.configured} <span className="text-sm font-semibold text-slate-500">/ {seoCredentialStatus.total}</span>
+                      </div>
+                    </div>
+                    <div className="rounded-2xl border border-white/5 bg-slate-900/30 p-4">
+                      <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">Mode</div>
+                      <div className="mt-1 text-xl font-extrabold text-white tracking-tight">Scaffold only</div>
+                      <div className="mt-1 text-[11px] text-slate-500">No content sync yet</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8 pt-4 border-t border-white/5 flex items-center justify-between text-xs text-[#22c55e] font-bold uppercase tracking-wider">
+                  <span>Open SEO workspace</span>
+                  <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-[#22c55e]/10 group-hover:bg-[#22c55e]/20 transition-colors duration-200">
+                    <Play className="h-3 w-3 fill-current" />
+                  </div>
+                </div>
+              </Card>
+            </Link>
+
             {/* Project Vault summary card */}
-            <Link href="/dashboard/vault" className="group block focus:outline-none md:col-span-2 lg:col-span-1">
+            <Link href="/dashboard/vault" className="group block focus:outline-none">
               <Card className="relative overflow-hidden border-white/10 bg-slate-950/45 p-6 backdrop-blur-2xl shadow-[0_20px_50px_rgba(2,6,23,0.7)] hover:border-[#d946ef]/40 transition-all duration-300 rounded-3xl h-full flex flex-col justify-between">
                 <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#d946ef]/40 to-transparent" />
                 <div className="absolute inset-0 -z-10 bg-gradient-to-br from-[#d946ef]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />

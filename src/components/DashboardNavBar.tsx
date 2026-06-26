@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Archive, ChevronUp, LayoutDashboard, LogOut, Rows3, ServerCog, UserRound } from "lucide-react";
+import { Archive, ChevronUp, LayoutDashboard, LogOut, Rows3, Search, ServerCog, UserRound } from "lucide-react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 
@@ -42,6 +42,7 @@ export function DashboardNavBar({ adminName }: DashboardNavBarProps) {
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/kanban", label: "Kanban", icon: Rows3 },
+    { href: "/dashboard/seo", label: "MaquiFit SEO", icon: Search },
     { href: "/dashboard/vault", label: "Vault", icon: Archive },
     { href: "/dashboard/services", label: "Services", icon: ServerCog },
   ];
