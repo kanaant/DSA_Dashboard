@@ -6,7 +6,7 @@ import { getAuthCookieName, verifyAuthToken } from "@/lib/auth";
 import { ThreeBackground } from "@/components/ThreeBackground";
 import { DashboardNavBar } from "@/components/DashboardNavBar";
 import { HeaderTelemetryDeck } from "@/components/HeaderTelemetryDeck";
-import { MaquifitSeoDashboardSection } from "@/components/MaquifitSeoDashboardSection";
+import { SeoDashboardContent } from "@/components/SeoDashboardContent";
 import { AGENT_NAME } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
@@ -27,12 +27,74 @@ async function getAdminName() {
   }
 }
 
+function getCredentialStates() {
+  return [
+    {
+      label: "WordPress token",
+      helper: "Read/write auth for the site API",
+      present: Boolean(process.env.WP_TOKEN),
+    },
+    {
+      label: "WooCommerce consumer key",
+      helper: "Primary WooCommerce API access",
+      present: Boolean(process.env.WOOCOMMERCE_CONSUMER_KEY),
+    },
+    {
+      label: "WooCommerce consumer secret",
+      helper: "Paired WooCommerce API secret",
+      present: Boolean(process.env.WOOCOMMERCE_CONSUMER_SECRET),
+    },
+    {
+      label: "SSH host",
+      helper: "Host for remote command line access",
+      present: Boolean(process.env.MAQUIFIT_SSH_HOST),
+    },
+    {
+      label: "SSH port",
+      helper: "Port for remote command line access",
+      present: Boolean(process.env.MAQUIFIT_SSH_PORT),
+    },
+    {
+      label: "SSH user",
+      helper: "User for remote command line access",
+      present: Boolean(process.env.MAQUIFIT_SSH_USER),
+    },
+    {
+      label: "SSH pass",
+      helper: "Password/key for remote command line access",
+      present: Boolean(process.env.MAQUIFIT_SSH_PASS),
+    },
+    {
+      label: "MCP user key",
+      helper: "MCP server user credential for future integrations",
+      present: Boolean(process.env.MAQUIFIT_MCP_USER_KEY),
+    },
+    {
+      label: "WP API URL",
+      helper: "WordPress MCP Adapter API endpoint URL",
+      present: Boolean(process.env.WP_API_URL),
+    },
+    {
+      label: "WP API username",
+      helper: "Username for WordPress MCP Adapter API",
+      present: Boolean(process.env.WP_API_USERNAME),
+    },
+    {
+      label: "WP API password",
+      helper: "Password for WordPress MCP Adapter API",
+      present: Boolean(process.env.WP_API_PASSWORD),
+    },
+  ];
+}
+
 export default async function SeoPage() {
   const adminName = await getAdminName();
 
   if (!adminName) {
     redirect("/login");
   }
+
+  const credentials = getCredentialStates();
 
   return (
     <>
@@ -51,7 +113,7 @@ export default async function SeoPage() {
           }}
         />
 
-        <div className="mx-auto flex max-w-7xl flex-col gap-6 relative z-10">
+        <div className="mx-auto flex max-w-[1600px] w-full flex-col gap-6 relative z-10">
           <header className="relative z-30 rounded-2xl border border-white/10 bg-slate-950/45 p-4 sm:p-6 backdrop-blur-2xl shadow-[0_20px_50px_rgba(2,6,23,0.7),inset_0_1px_0_rgba(255,255,255,0.08)] select-none">
             <div className="flex flex-row items-center justify-between gap-4">
               <div className="flex-1 max-w-[72%] sm:max-w-none space-y-2 sm:space-y-3">
@@ -64,7 +126,7 @@ export default async function SeoPage() {
                     MaquiFit <span className="bg-gradient-to-r from-[#4ade80] via-[#22c55e] to-[#00d4ff] bg-clip-text text-transparent">SEO Control Room</span>
                   </h1>
                   <p className="mt-1 sm:mt-2 max-w-3xl text-xs sm:text-sm leading-relaxed text-slate-300">
-                    This page is scaffolded only. It confirms the integration credentials are present, but it does not load or write SEO content yet.
+                    Live-safe, multilingual Rank Math SEO optimization dashboard for products, static pages, and blog posts.
                   </p>
                 </div>
               </div>
@@ -78,7 +140,7 @@ export default async function SeoPage() {
             </div>
           </header>
 
-          <MaquifitSeoDashboardSection />
+          <SeoDashboardContent credentials={credentials} />
         </div>
       </main>
     </>
