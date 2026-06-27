@@ -30,10 +30,9 @@ function getSeoCredentialStatus() {
     { key: "MAQUIFIT_SSH_PORT" as const, label: "SSH port" },
     { key: "MAQUIFIT_SSH_USER" as const, label: "SSH user" },
     { key: "MAQUIFIT_SSH_PASS" as const, label: "SSH pass" },
-    { key: "MAQUIFIT_MCP_USER_KEY" as const, label: "MCP user key" },
     { key: "WP_API_URL" as const, label: "WP API URL" },
     { key: "WP_API_USERNAME" as const, label: "WP API user" },
-    { key: "WP_API_PASSWORD" as const, label: "WP API pass" },
+    { key: "WP_API_PASSWORD" as const, label: "MCP user key" },
   ] as const;
 
   const configured = credentials.filter(({ key }) => Boolean(process.env[key])).length;

@@ -46,11 +46,6 @@ function getCredentialStates(): CredentialState[] {
       present: Boolean(process.env.MAQUIFIT_SSH_PASS),
     },
     {
-      label: "MCP user key",
-      helper: "MCP server user credential for future integrations",
-      present: Boolean(process.env.MAQUIFIT_MCP_USER_KEY),
-    },
-    {
       label: "WP API URL",
       helper: "WordPress MCP Adapter API endpoint URL",
       present: Boolean(process.env.WP_API_URL),
@@ -61,8 +56,8 @@ function getCredentialStates(): CredentialState[] {
       present: Boolean(process.env.WP_API_USERNAME),
     },
     {
-      label: "WP API password",
-      helper: "Password for WordPress MCP Adapter API",
+      label: "MCP user key",
+      helper: "Password/key for WordPress MCP Adapter API",
       present: Boolean(process.env.WP_API_PASSWORD),
     },
   ];
