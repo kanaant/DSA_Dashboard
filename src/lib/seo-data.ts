@@ -18,6 +18,7 @@ export interface SeoSettings {
   categories: string[]; // "product", "page", "post"
   schedule: string; // "daily" | "weekly" | "manual"
   dailyHour?: number; // 0-23
+  optimizeScoreThreshold?: number; // threshold score under which to optimize (default 80)
 }
 
 export async function ensureSeoDir() {
@@ -66,12 +67,17 @@ export async function loadSeoSettings(): Promise<SeoSettings> {
   await ensureSeoDir();
   try {
     const data = await fs.readFile(SETTINGS_FILE, "utf-8");
-    return JSON.parse(data);
+    const parsed = JSON.parse(data);
+    if (parsed.optimizeScoreThreshold === undefined) {
+      parsed.optimizeScoreThreshold = 80;
+    }
+    return parsed;
   } catch {
     return {
       categories: ["product"],
       schedule: "daily",
-      dailyHour: 2
+      dailyHour: 2,
+      optimizeScoreThreshold: 80
     };
   }
 }

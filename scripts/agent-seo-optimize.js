@@ -171,12 +171,26 @@ async function main() {
     const recs = state.recommendations || [];
     const enabledTypes = new Set(settings.categories || []);
 
-    const targetRecs = recs.filter(r => enabledTypes.has(r.content_type));
+    // Parse target post IDs from command line arguments
+    let targetPostIds = null;
+    const postIdsIdx = process.argv.indexOf("--post-ids");
+    if (postIdsIdx !== -1 && process.argv[postIdsIdx + 1]) {
+      targetPostIds = new Set(
+        process.argv[postIdsIdx + 1].split(",").map(id => parseInt(id.trim(), 10))
+      );
+      console.log(`Filtering optimization to specific post IDs: ${process.argv[postIdsIdx + 1]}`);
+    }
+
+    const targetRecs = recs.filter(r => {
+      const typeMatches = enabledTypes.has(r.content_type);
+      const idMatches = !targetPostIds || targetPostIds.has(r.post_id);
+      return typeMatches && idMatches;
+    });
     console.log(`Found ${targetRecs.length} items to optimize out of ${recs.length} total recommendations.`);
 
     let completed = 0;
     for (const rec of recs) {
-      if (!enabledTypes.has(rec.content_type)) {
+      if (!enabledTypes.has(rec.content_type) || (targetPostIds && !targetPostIds.has(rec.post_id))) {
         continue;
       }
 
@@ -193,6 +207,7 @@ async function main() {
         rec.proposed.score = calculateSimulatedScore(optimized.seo_title, optimized.meta_description, optimized.focus_keyword, rec.slug);
         rec.proposed.yoast_title = optimized.seo_title;
         rec.proposed.yoast_description = optimized.meta_description;
+        rec.approved = true;
 
         // Recalculate changed fields
         rec.changed_fields = [];

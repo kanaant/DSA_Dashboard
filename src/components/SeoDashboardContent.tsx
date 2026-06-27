@@ -22,7 +22,8 @@ import {
   Info,
   Clock,
   ShieldCheck,
-  Check
+  Check,
+  Trash2
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -140,6 +141,8 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
     recommendations: []
   });
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
+  const [selectedForOptimization, setSelectedForOptimization] = useState<Set<number>>(new Set());
+  const [onlyPublished, setOnlyPublished] = useState(true);
   
   // Pipeline running status
   const [status, setStatus] = useState<any>({
@@ -152,7 +155,8 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
   const [settings, setSettings] = useState<any>({
     categories: ["product"],
     schedule: "daily",
-    dailyHour: 2
+    dailyHour: 2,
+    optimizeScoreThreshold: 80
   });
 
   const [loading, setLoading] = useState(true);
@@ -163,12 +167,26 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
   // Poll status when running
   const statusPollRef = useRef<NodeJS.Timeout | null>(null);
 
-  const fetchState = async () => {
+  const fetchState = async (currentSettings?: any) => {
     try {
       const res = await fetch("/api/seo");
       if (res.ok) {
         const data = await res.json();
         setState(data);
+        
+        // Auto-select based on score threshold and publish status
+        const isOptimized = (data.recommendations || []).some((r: any) => r.notes?.includes("agent-optimized"));
+        if (!isOptimized && data.recommendations) {
+          const threshold = currentSettings?.optimizeScoreThreshold ?? settings?.optimizeScoreThreshold ?? 80;
+          const targetIds = data.recommendations
+            .filter((r: any) => {
+              const isPublish = r.status === "publish";
+              const score = r.current?.score ?? r.raw?.rankmath?.score ?? 0;
+              return isPublish && score < threshold;
+            })
+            .map((r: any) => r.post_id);
+          setSelectedForOptimization(new Set(targetIds));
+        }
       }
     } catch (err) {
       console.error("Failed to fetch SEO state:", err);
@@ -181,10 +199,12 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
       if (res.ok) {
         const data = await res.json();
         setSettings(data);
+        return data;
       }
     } catch (err) {
       console.error("Failed to fetch settings:", err);
     }
+    return null;
   };
 
   const fetchStatus = async () => {
@@ -215,7 +235,8 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
   useEffect(() => {
     const init = async () => {
       setLoading(true);
-      await Promise.all([fetchState(), fetchSettings(), fetchStatus()]);
+      const settingsData = await fetchSettings();
+      await Promise.all([fetchState(settingsData), fetchStatus()]);
       setLoading(false);
     };
     init();
@@ -225,7 +246,7 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
     };
   }, []);
 
-  const triggerRefresh = async (action: "all" | "sync" | "optimize" = "all") => {
+  const triggerRefresh = async (action: "all" | "sync" | "optimize" = "all", postIds?: number[]) => {
     if (status.status === "running") return;
     
     let infoMsg = "Starting WordPress live sync and optimization...";
@@ -243,7 +264,7 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
       const res = await fetch("/api/seo/refresh", { 
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action })
+        body: JSON.stringify({ action, postIds })
       });
       if (res.ok) {
         // Start polling immediately
@@ -411,31 +432,70 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
     if (activeTab === "settings") return false;
     const matchesTab = rec.content_type === activeTab;
     const matchesLang = langFilter === "all" || rec.language === langFilter;
+    const matchesStatus = !onlyPublished || rec.status === "publish";
     const matchesSearch = !searchQuery || 
       rec.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       rec.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
       String(rec.post_id).includes(searchQuery);
 
-    return matchesTab && matchesLang && matchesSearch;
+    return matchesTab && matchesLang && matchesStatus && matchesSearch;
   });
 
   const totalApproved = (state.recommendations || []).filter((r: any) => r.approved).length;
 
+  const getLanguageCount = (lang: string) => {
+    return (state.recommendations || []).filter((r: any) => {
+      const matchesTab = activeTab === "settings" ? true : r.content_type === activeTab;
+      const matchesLang = lang === "all" ? true : r.language === lang;
+      const matchesStatus = !onlyPublished || r.status === "publish";
+      return matchesTab && matchesLang && matchesStatus;
+    }).length;
+  };
+
+  const isOptimizedState = (state.recommendations || []).some((r: any) => r.notes?.includes("agent-optimized"));
+  const allVisibleSelected = filteredRecs.length > 0 && filteredRecs.every((r: any) => selectedForOptimization.has(r.post_id));
+  const allVisibleApproved = filteredRecs.length > 0 && filteredRecs.every((r: any) => r.approved);
+
+  const toggleAllVisibleForOptimization = () => {
+    setSelectedForOptimization((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) {
+        filteredRecs.forEach((r: any) => next.delete(r.post_id));
+      } else {
+        filteredRecs.forEach((r: any) => next.add(r.post_id));
+      }
+      return next;
+    });
+  };
+
+  const toggleAllVisibleForApproval = () => {
+    setState((prev: any) => {
+      const nextVal = !allVisibleApproved;
+      const recs = prev.recommendations.map((rec: any) => {
+        const isVisible = filteredRecs.some((vr: any) => vr.post_id === rec.post_id);
+        if (isVisible) {
+          return { ...rec, approved: nextVal };
+        }
+        return rec;
+      });
+      return { ...prev, recommendations: recs };
+    });
+  };
+
+  const toggleItemForOptimization = (postId: number) => {
+    setSelectedForOptimization((prev) => {
+      const next = new Set(prev);
+      if (next.has(postId)) {
+        next.delete(postId);
+      } else {
+        next.add(postId);
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="space-y-6">
-      {/* Toast Notification */}
-      {notification && (
-        <div className={`fixed right-6 top-24 z-50 flex items-center gap-3 rounded-2xl border px-4 py-3.5 shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-4 duration-300 ${
-          notification.type === "success" 
-            ? "border-emerald-500/20 bg-emerald-950/75 text-emerald-300"
-            : notification.type === "error"
-            ? "border-rose-500/20 bg-rose-950/75 text-rose-300"
-            : "border-cyan-500/20 bg-cyan-950/75 text-cyan-300"
-        }`}>
-          {notification.type === "success" ? <CheckCircle className="h-5 w-5 shrink-0" /> : <AlertCircle className="h-5 w-5 shrink-0" />}
-          <span className="text-sm font-semibold tracking-wide">{notification.message}</span>
-        </div>
-      )}
 
       {/* Main Control Panel Header */}
       <div className="rounded-3xl border border-white/10 bg-slate-950/45 p-6 backdrop-blur-2xl shadow-[0_20px_50px_rgba(2,6,23,0.7)] flex flex-col md:flex-row gap-6 justify-between items-center select-none">
@@ -447,25 +507,38 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
               onChange={(e) => setLangFilter(e.target.value as any)}
               className="appearance-none bg-slate-900/60 hover:bg-slate-900 border border-white/10 hover:border-white/20 text-white rounded-2xl px-4 py-2.5 pr-10 text-sm font-semibold focus:outline-none transition-all duration-200 cursor-pointer"
             >
-              <option value="all">🌐 All Languages</option>
-              <option value="fr">🇫🇷 French (FR)</option>
-              <option value="en">🇬🇧 English (EN)</option>
-              <option value="es">🇪🇸 Spanish (ES)</option>
+              <option value="all">🌐 All Languages ({getLanguageCount("all")})</option>
+              <option value="fr">🇫🇷 French (FR) ({getLanguageCount("fr")})</option>
+              <option value="en">🇬🇧 English (EN) ({getLanguageCount("en")})</option>
+              <option value="es">🇪🇸 Spanish (ES) ({getLanguageCount("es")})</option>
             </select>
             <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
           </div>
 
           {/* Search bar */}
           {activeTab !== "settings" && (
-            <div className="relative flex-1 md:w-80">
-              <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search by title, slug, or ID..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-900/60 border border-white/10 text-white rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-white/20 placeholder-slate-500 transition-all duration-200"
-              />
+            <div className="flex items-center gap-4 flex-1 md:flex-initial">
+              <div className="relative flex-1 md:w-80">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  placeholder="Search by title, slug, or ID..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-slate-900/60 border border-white/10 text-white rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-white/20 placeholder-slate-500 transition-all duration-200"
+                />
+              </div>
+
+              {/* Published filter checkbox */}
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-300 hover:text-white cursor-pointer select-none bg-slate-900/40 border border-white/10 hover:border-white/20 rounded-2xl px-4 py-2.5 transition-all duration-200">
+                <input
+                  type="checkbox"
+                  checked={onlyPublished}
+                  onChange={(e) => setOnlyPublished(e.target.checked)}
+                  className="h-4 w-4 rounded border-white/10 bg-slate-950 text-[#4ade80] accent-[#4ade80] cursor-pointer focus:ring-0"
+                />
+                <span className="whitespace-nowrap">Published Only</span>
+              </label>
             </div>
           )}
         </div>
@@ -487,7 +560,29 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
             </div>
           )}
 
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            {/* Inline Notification (Relocated to left of Sync Button) */}
+            {notification && (
+              <div className={`flex items-center gap-2 rounded-2xl border px-3.5 py-1.5 shadow-md backdrop-blur-md animate-in fade-in slide-in-from-left-4 duration-300 ${
+                notification.type === "success" 
+                  ? "border-emerald-500/25 bg-emerald-950/45 text-emerald-300"
+                  : notification.type === "error"
+                  ? "border-rose-500/25 bg-rose-950/45 text-rose-300"
+                  : "border-indigo-500/25 bg-indigo-950/45 text-indigo-300"
+              }`}>
+                {notification.type === "success" ? (
+                  <CheckCircle className="h-4 w-4 shrink-0 text-emerald-400" />
+                ) : notification.type === "info" ? (
+                  <Sparkles className="h-4 w-4 shrink-0 text-indigo-400 animate-pulse" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
+                )}
+                <span className="text-xs font-semibold tracking-wide truncate max-w-[120px] sm:max-w-[250px] md:max-w-[320px]">
+                  {notification.message}
+                </span>
+              </div>
+            )}
+
             {/* Sync Button */}
             <button
               onClick={() => triggerRefresh("sync")}
@@ -504,8 +599,20 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
 
              {/* Optimize Button */}
             <button
-              onClick={() => triggerRefresh("optimize")}
-              disabled={status.status === "running" || loading || !state.recommendations || state.recommendations.length === 0}
+              onClick={() => {
+                if (isOptimizedState) {
+                  triggerRefresh("optimize");
+                } else {
+                  triggerRefresh("optimize", Array.from(selectedForOptimization));
+                }
+              }}
+              disabled={
+                status.status === "running" || 
+                loading || 
+                !state.recommendations || 
+                state.recommendations.length === 0 ||
+                (!isOptimizedState && selectedForOptimization.size === 0)
+              }
               className={`flex items-center gap-2 rounded-2xl px-4 py-2.5 text-xs font-bold uppercase tracking-wider transition-all duration-200 ${
                 status.status === "running" || loading || !state.recommendations || state.recommendations.length === 0
                   ? "bg-slate-900 border border-white/5 text-slate-500 cursor-not-allowed"
@@ -513,7 +620,7 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
               }`}
             >
               <Sparkles className="h-4 w-4" />
-              Optimize
+              {isOptimizedState ? "Optimize" : `Optimize (${selectedForOptimization.size})`}
             </button>
 
             {/* Publish Button */}
@@ -534,37 +641,49 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
       </div>
 
       {/* Categories Tabs Row */}
-      <div className="flex border-b border-white/5 gap-2 select-none">
-        {[
-          { id: "product", label: "Products", icon: ShoppingBag },
-          { id: "page", label: "Pages", icon: FileText },
-          { id: "post", label: "Posts", icon: Layers },
-          { id: "settings", label: "Cron & Settings", icon: Settings2 },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-6 py-3.5 border-b-2 text-sm font-extrabold transition-all duration-200 -mb-px cursor-pointer ${
-                isActive
-                  ? "border-[#4ade80] text-[#4ade80]"
-                  : "border-transparent text-slate-400 hover:text-slate-200"
-              }`}
-            >
-              <Icon className="h-4.5 w-4.5" />
-              {tab.label}
-              {tab.id !== "settings" && (
-                <span className={`ml-1.5 px-2 py-0.5 text-[10px] rounded-full font-black ${
-                  isActive ? "bg-[#4ade80]/15 text-[#4ade80]" : "bg-slate-900 text-slate-500"
-                }`}>
-                  {(state.recommendations || []).filter((r: any) => r.content_type === tab.id).length}
-                </span>
-              )}
-            </button>
-          );
-        })}
+      <div className="flex justify-between items-center border-b border-white/5 select-none">
+        <div className="flex gap-2">
+          {[
+            { id: "product", label: "Products", icon: ShoppingBag },
+            { id: "page", label: "Pages", icon: FileText },
+            { id: "post", label: "Posts", icon: Layers },
+            { id: "settings", label: "Cron & Settings", icon: Settings2 },
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center gap-2 px-6 py-3.5 border-b-2 text-sm font-extrabold transition-all duration-200 -mb-px cursor-pointer ${
+                  isActive
+                    ? "border-[#4ade80] text-[#4ade80]"
+                    : "border-transparent text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <Icon className="h-4.5 w-4.5" />
+                {tab.label}
+                {tab.id !== "settings" && (
+                  <span className={`ml-1.5 px-2 py-0.5 text-[10px] rounded-full font-black ${
+                    isActive ? "bg-[#4ade80]/15 text-[#4ade80]" : "bg-slate-900 text-slate-500"
+                  }`}>
+                    {(state.recommendations || []).filter((r: any) => r.content_type === tab.id && (langFilter === "all" || r.language === langFilter) && (!onlyPublished || r.status === "publish")).length}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Uncheck All Option */}
+        {!isOptimizedState && activeTab !== "settings" && selectedForOptimization.size > 0 && (
+          <button
+            onClick={() => setSelectedForOptimization(new Set())}
+            className="text-xs font-black uppercase tracking-wider text-rose-400 hover:text-rose-300 transition-colors px-4 py-2 cursor-pointer flex items-center gap-1.5"
+          >
+            <span>Uncheck All ({selectedForOptimization.size})</span>
+          </button>
+        )}
       </div>
 
       {/* Main Grid View */}
@@ -665,6 +784,31 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
                   })}
                 </div>
               </div>
+
+              <div className="space-y-2 mt-4">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Default Optimization Score Threshold</label>
+                <div className="rounded-2xl border border-white/5 bg-slate-900/10 p-4 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-bold text-white">Optimize Published Items Under:</span>
+                    <span className="text-sm font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-xl">
+                      {settings.optimizeScoreThreshold ?? 80}%
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <input
+                      type="range"
+                      min="10"
+                      max="100"
+                      value={settings.optimizeScoreThreshold ?? 80}
+                      onChange={(e) => saveSettings({ ...settings, optimizeScoreThreshold: Number(e.target.value) })}
+                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-400 focus:outline-none"
+                    />
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-slate-400 select-none">
+                    After a content pull, the optimization checkbox is automatically checked only for live published items whose current RankMath SEO score is strictly below this threshold.
+                  </p>
+                </div>
+              </div>
             </CardContent>
           </Card>
 
@@ -707,6 +851,52 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
               </div>
             </CardContent>
           </Card>
+
+          {/* Reset Data Card */}
+          <Card className="border-rose-500/10 bg-slate-950/45 backdrop-blur-2xl shadow-xl rounded-3xl xl:col-span-2 mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-white">
+                <Trash2 className="h-5 w-5 text-rose-400" />
+                Reset Workflow State
+              </CardTitle>
+              <CardDescription className="text-slate-400">
+                Permanently purge all pulled and optimized local data, allowing you to start a fresh synchronization.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="text-xs text-slate-400 max-w-xl leading-relaxed">
+                This action will delete `workflow_state.json`, `inventory.json`, `translations.json`, and all cache files in your vault. Your cron settings will be preserved, but the dashboard data will be completely cleared.
+              </div>
+              <button
+                onClick={async () => {
+                  const confirmReset = window.confirm("Are you sure you want to delete all cached inventory and SEO recommendations? This cannot be undone.");
+                  if (!confirmReset) return;
+                  
+                  try {
+                    showNotification("info", "Resetting data store...");
+                    const res = await fetch("/api/seo/refresh", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ action: "reset" })
+                    });
+                    
+                    if (res.ok) {
+                      showNotification("success", "Workflow state successfully reset to zero.");
+                      setSelectedForOptimization(new Set());
+                      await fetchState();
+                    } else {
+                      showNotification("error", "Failed to reset data.");
+                    }
+                  } catch (err: any) {
+                    showNotification("error", err.message || "Error resetting data.");
+                  }
+                }}
+                className="px-5 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 rounded-2xl text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer whitespace-nowrap"
+              >
+                Reset Dashboard Data
+              </button>
+            </CardContent>
+          </Card>
         </div>
       ) : filteredRecs.length === 0 ? (
         /* Empty State */
@@ -732,14 +922,32 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
                 <th className="px-6 py-4 w-32">Type</th>
                 <th className="px-6 py-4 w-28 text-center">Status</th>
                 <th className="px-6 py-4 w-32 text-center">Staged</th>
-                <th className="px-6 py-4 w-28 text-center">Approval</th>
+                <th className="px-6 py-4 w-36 text-center cursor-pointer hover:text-white transition-colors" onClick={(e) => {
+                  e.stopPropagation();
+                  if (isOptimizedState) {
+                    toggleAllVisibleForApproval();
+                  } else {
+                    toggleAllVisibleForOptimization();
+                  }
+                }}>
+                  <div className="flex items-center justify-center gap-1.5 select-none">
+                    <input
+                      type="checkbox"
+                      checked={isOptimizedState ? allVisibleApproved : allVisibleSelected}
+                      onChange={() => {}} // parent th handles the click
+                      className="h-4 w-4 rounded border-white/10 bg-slate-900 text-emerald-500 accent-emerald-500 cursor-pointer pointer-events-none focus:ring-0"
+                    />
+                    <span>{isOptimizedState ? "Approval" : "Optimize"}</span>
+                  </div>
+                </th>
                 <th className="px-6 py-4 w-20 text-center">Details</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5">
               {filteredRecs.map((rec: any) => {
                 const isExpanded = !!expandedRows[rec.post_id];
-                const hasChanges = rec.changed_fields && rec.changed_fields.length > 0;
+                const isItemOptimized = rec.notes?.includes("agent-optimized");
+                const hasChanges = isItemOptimized && rec.changed_fields && rec.changed_fields.length > 0;
                 const score = rec.current?.score ?? rec.raw?.rankmath?.score ?? null;
                 
                 // Score styling matching circular progress ring logic
@@ -759,17 +967,27 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
                     {/* Main Row */}
                     <tr 
                       onClick={() => setExpandedRows(prev => ({ ...prev, [rec.post_id]: !prev[rec.post_id] }))}
-                      className={`hover:bg-white/[0.02] transition-colors cursor-pointer select-none ${isExpanded ? "bg-white/[0.01]" : ""}`}
+                      className={`hover:bg-white/[0.02] transition-colors cursor-pointer select-none ${
+                        isExpanded ? "bg-white/[0.01]" : ""
+                      } ${
+                        rec.notes?.includes("agent-optimized") 
+                          ? "bg-indigo-950/5 hover:bg-indigo-950/10" 
+                          : ""
+                      }`}
                     >
                       {/* Score Badge */}
-                      <td className="px-6 py-4 text-center">
+                      <td className={`px-6 py-4 text-center transition-all duration-200 ${
+                        rec.notes?.includes("agent-optimized") 
+                          ? "border-l-4 border-indigo-500 bg-indigo-500/5" 
+                          : "border-l-4 border-transparent"
+                      }`}>
                         <div className="flex items-center justify-center gap-1.5 select-none">
                           <span className={`inline-flex items-center justify-center font-black text-[10px] w-7 h-7 rounded-full border ${scoreBg}`}>
                             {score !== null ? score : "—"}
                           </span>
                           
-                          {/* If score has changed, show arrow and new score! */}
-                          {hasChanges && rec.proposed?.score !== undefined && rec.proposed?.score !== score && (
+                          {/* If score has changed and item was optimized, show arrow and new score! */}
+                          {rec.notes?.includes("agent-optimized") && rec.proposed?.score !== undefined && rec.proposed?.score !== score && (
                             <>
                               <span className="text-slate-500 font-bold text-xs">➔</span>
                               <span className={`inline-flex items-center justify-center font-black text-[10px] w-7 h-7 rounded-full border ${
@@ -833,12 +1051,18 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
                         )}
                       </td>
 
-                      {/* Approval Checkbox */}
+                      {/* Selection / Approval Checkbox */}
                       <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
-                          checked={rec.approved || false}
-                          onChange={(e) => handleApprovalChange(rec.post_id, e.target.checked)}
+                          checked={isOptimizedState ? (rec.approved || false) : selectedForOptimization.has(rec.post_id)}
+                          onChange={(e) => {
+                            if (isOptimizedState) {
+                              handleApprovalChange(rec.post_id, e.target.checked);
+                            } else {
+                              toggleItemForOptimization(rec.post_id);
+                            }
+                          }}
                           className="h-4.5 w-4.5 rounded border-white/10 bg-slate-900 text-emerald-500 accent-emerald-500 cursor-pointer focus:ring-0 focus:ring-offset-0"
                         />
                       </td>
@@ -899,11 +1123,24 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
                                   <Sparkles className="h-3.5 w-3.5" />
                                   Proposed Metadata
                                 </span>
-                                {hasChanges && (
-                                  <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-500/25 px-1.5 py-0.5 rounded text-emerald-300">
-                                    Updates Staged
+                                <div className="flex items-center gap-2">
+                                  {hasChanges && (
+                                    <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-500/25 px-1.5 py-0.5 rounded text-emerald-300">
+                                      Staged
+                                    </span>
+                                  )}
+                                  <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${
+                                    rec.notes?.includes("agent-optimized")
+                                      ? (rec.proposed?.score >= 80 
+                                        ? "bg-emerald-500/25 text-emerald-300 border border-emerald-500/30" 
+                                        : rec.proposed?.score >= 50 
+                                        ? "bg-amber-500/25 text-amber-300 border border-amber-500/30" 
+                                        : "bg-rose-500/25 text-rose-300 border border-rose-500/30")
+                                      : "bg-slate-800 text-slate-500"
+                                  }`}>
+                                    Est. Score: {rec.notes?.includes("agent-optimized") && rec.proposed?.score !== undefined ? rec.proposed.score : "—"}
                                   </span>
-                                )}
+                                </div>
                               </h4>
                               <div className="space-y-1">
                                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider select-none">SEO Title</label>

@@ -6,7 +6,7 @@ import { saveSeoStatus, VAULT_SEO_DIR } from "@/lib/seo-data";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function runPipeline(action: "all" | "sync" | "optimize" = "all") {
+function runPipeline(action: "all" | "sync" | "optimize" = "all", postIds: number[] | null = null) {
   const env = {
     ...process.env,
     MAQUIFIT_MCP_URL: process.env.WP_API_URL,
@@ -27,7 +27,11 @@ function runPipeline(action: "all" | "sync" | "optimize" = "all") {
       progress: 20
     });
 
-    const agentProcess = spawn("node", [agentScript], { env });
+    const args = [agentScript];
+    if (postIds && postIds.length > 0) {
+      args.push("--post-ids", postIds.join(","));
+    }
+    const agentProcess = spawn("node", args, { env });
 
     let agentError = "";
     agentProcess.stderr.on("data", (data) => {
@@ -97,7 +101,11 @@ function runPipeline(action: "all" | "sync" | "optimize" = "all") {
       progress: 60
     });
 
-    const agentProcess = spawn("node", [agentScript], { env });
+    const args = [agentScript];
+    if (postIds && postIds.length > 0) {
+      args.push("--post-ids", postIds.join(","));
+    }
+    const agentProcess = spawn("node", args, { env });
 
     let agentError = "";
     agentProcess.stderr.on("data", (data) => {
@@ -130,6 +138,23 @@ export async function POST(request: NextRequest) {
     const body = await request.json().catch(() => ({}));
     const action = body.action || "all";
 
+    if (action === "reset") {
+      const fs = require("fs").promises;
+      const path = require("path");
+      const VAULT_SEO_DIR = "/home/dscalez/vault/DSA_Dashboard/maquifit-seo";
+      
+      await fs.rm(path.join(VAULT_SEO_DIR, "workflow_state.json"), { force: true });
+      await fs.rm(path.join(VAULT_SEO_DIR, "inventory.json"), { force: true });
+      await fs.rm(path.join(VAULT_SEO_DIR, "translations.json"), { force: true });
+      await fs.rm(path.join(VAULT_SEO_DIR, "abilities.json"), { force: true });
+      await fs.rm(path.join(VAULT_SEO_DIR, "abilities.raw.json"), { force: true });
+      await fs.rm(path.join(VAULT_SEO_DIR, "live-inventory.json"), { force: true });
+      await fs.rm(path.join(VAULT_SEO_DIR, "drafts.json"), { force: true });
+      await fs.rm(path.join(VAULT_SEO_DIR, "status.json"), { force: true });
+
+      return NextResponse.json({ success: true, message: "SEO workflow state reset." });
+    }
+
     await saveSeoStatus({
       status: "running",
       step: action === "optimize" 
@@ -138,8 +163,10 @@ export async function POST(request: NextRequest) {
       progress: 10
     });
 
+    const postIds = Array.isArray(body.postIds) ? body.postIds.map(Number) : null;
+
     // Run the pipeline asynchronously in background
-    runPipeline(action);
+    runPipeline(action, postIds);
 
     return NextResponse.json({ success: true, message: `SEO ${action} pipeline triggered.` });
   } catch (error: any) {
