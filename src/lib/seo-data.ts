@@ -86,3 +86,20 @@ export async function saveSeoSettings(settings: SeoSettings): Promise<void> {
   await ensureSeoDir();
   await fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), "utf-8");
 }
+
+export const IGNORED_FILE = path.join(VAULT_SEO_DIR, "ignored.json");
+
+export async function loadIgnoredIds(): Promise<number[]> {
+  await ensureSeoDir();
+  try {
+    const data = await fs.readFile(IGNORED_FILE, "utf-8");
+    return JSON.parse(data);
+  } catch {
+    return [];
+  }
+}
+
+export async function saveIgnoredIds(ids: number[]): Promise<void> {
+  await ensureSeoDir();
+  await fs.writeFile(IGNORED_FILE, JSON.stringify(ids, null, 2), "utf-8");
+}

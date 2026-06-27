@@ -56,7 +56,7 @@ export function SeoDashboardAnalytics() {
     );
   }
 
-  const recs = state.recommendations;
+  const recs = (state.recommendations || []).filter((r: any) => !r.ignored);
   const totalItems = recs.length;
 
   // 1. Categories stats

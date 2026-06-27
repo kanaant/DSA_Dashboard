@@ -23,7 +23,9 @@ import {
   Clock,
   ShieldCheck,
   Check,
-  Trash2
+  Trash2,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -143,6 +145,9 @@ export function SeoDashboardContent({ credentials, initialTab = "product" }: { c
   const [expandedRows, setExpandedRows] = useState<Record<number, boolean>>({});
   const [selectedForOptimization, setSelectedForOptimization] = useState<Set<number>>(new Set());
   const [onlyPublished, setOnlyPublished] = useState(true);
+  const [excludeIgnored, setExcludeIgnored] = useState(true);
+  const [showStagedOnly, setShowStagedOnly] = useState(false);
+  const [showIgnoreColumn, setShowIgnoreColumn] = useState(false);
   
   // Pipeline running status
   const [status, setStatus] = useState<any>({
@@ -339,6 +344,19 @@ export function SeoDashboardContent({ credentials, initialTab = "product" }: { c
     });
   };
 
+  const toggleItemIgnore = (postId: number) => {
+    setState((prev: any) => {
+      const recs = (prev.recommendations || []).map((r: any) => {
+        if (r.post_id === postId) {
+          const wasIgnored = !!r.ignored;
+          return { ...r, ignored: !wasIgnored };
+        }
+        return r;
+      });
+      return { ...prev, recommendations: recs };
+    });
+  };
+
   const saveChanges = async () => {
     setSaving(true);
     try {
@@ -436,12 +454,14 @@ export function SeoDashboardContent({ credentials, initialTab = "product" }: { c
     const matchesTab = rec.content_type === activeTab;
     const matchesLang = langFilter === "all" || rec.language === langFilter;
     const matchesStatus = !onlyPublished || rec.status === "publish";
+    const matchesIgnore = !excludeIgnored || !rec.ignored;
+    const matchesStaged = !showStagedOnly || (rec.notes?.includes("agent-optimized"));
     const matchesSearch = !searchQuery || 
       rec.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       rec.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
       String(rec.post_id).includes(searchQuery);
 
-    return matchesTab && matchesLang && matchesStatus && matchesSearch;
+    return matchesTab && matchesLang && matchesStatus && matchesIgnore && matchesStaged && matchesSearch;
   });
 
   const totalApproved = (state.recommendations || []).filter((r: any) => r.approved).length;
@@ -451,7 +471,9 @@ export function SeoDashboardContent({ credentials, initialTab = "product" }: { c
       const matchesTab = activeTab === "settings" ? true : r.content_type === activeTab;
       const matchesLang = lang === "all" ? true : r.language === lang;
       const matchesStatus = !onlyPublished || r.status === "publish";
-      return matchesTab && matchesLang && matchesStatus;
+      const matchesIgnore = !excludeIgnored || !r.ignored;
+      const matchesStaged = !showStagedOnly || (r.notes?.includes("agent-optimized"));
+      return matchesTab && matchesLang && matchesStatus && matchesIgnore && matchesStaged;
     }).length;
   };
 
@@ -737,29 +759,16 @@ export function SeoDashboardContent({ credentials, initialTab = "product" }: { c
           </div>
 
           {/* Search bar */}
-            <div className="flex items-center gap-4 flex-1 md:flex-initial">
-              <div className="relative flex-1 md:w-80">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search by title, slug, or ID..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-slate-900/60 border border-white/10 text-white rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-white/20 placeholder-slate-500 transition-all duration-200"
-                />
-              </div>
-
-              {/* Published filter checkbox */}
-              <label className="flex items-center gap-2 text-xs font-semibold text-slate-300 hover:text-white cursor-pointer select-none bg-slate-900/40 border border-white/10 hover:border-white/20 rounded-2xl px-4 py-2.5 transition-all duration-200">
-                <input
-                  type="checkbox"
-                  checked={onlyPublished}
-                  onChange={(e) => setOnlyPublished(e.target.checked)}
-                  className="h-4 w-4 rounded border-white/10 bg-slate-950 text-[#4ade80] accent-[#4ade80] cursor-pointer focus:ring-0"
-                />
-                <span className="whitespace-nowrap">Published Only</span>
-              </label>
-            </div>
+          <div className="relative w-full md:w-80">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search by title, slug, or ID..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-slate-900/60 border border-white/10 text-white rounded-2xl pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:border-white/20 placeholder-slate-500 transition-all duration-200"
+            />
+          </div>
         </div>
 
         {/* Action Controls & Pipeline Status */}
@@ -860,7 +869,7 @@ export function SeoDashboardContent({ credentials, initialTab = "product" }: { c
       </div>
 
       {/* Categories Tabs Row */}
-      <div className="flex justify-between items-center border-b border-white/5 select-none">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/5 select-none pb-2 sm:pb-0">
         <div className="flex gap-2">
           {[
             { id: "product", label: "Products", icon: ShoppingBag },
@@ -884,12 +893,72 @@ export function SeoDashboardContent({ credentials, initialTab = "product" }: { c
                 <span className={`ml-1.5 px-2 py-0.5 text-[10px] rounded-full font-black ${
                   isActive ? "bg-[#4ade80]/15 text-[#4ade80]" : "bg-slate-900 text-slate-500"
                 }`}>
-                  {(state.recommendations || []).filter((r: any) => r.content_type === tab.id && (langFilter === "all" || r.language === langFilter) && (!onlyPublished || r.status === "publish")).length}
+                  {(state.recommendations || []).filter((r: any) => 
+                    r.content_type === tab.id && 
+                    (langFilter === "all" || r.language === langFilter) && 
+                    (!onlyPublished || r.status === "publish") &&
+                    (!excludeIgnored || !r.ignored) &&
+                    (!showStagedOnly || r.notes?.includes("agent-optimized"))
+                  ).length}
                 </span>
               </button>
             );
           })}
+        </div>
+
+        {/* Checkboxes Filter Container */}
+        <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-slate-400 mr-2 pb-3 sm:pb-0">
+          <label className="flex items-center gap-2 hover:text-white cursor-pointer select-none bg-slate-900/30 border border-white/5 rounded-xl px-3 py-1.5 transition-all duration-200">
+            <input
+              type="checkbox"
+              checked={onlyPublished}
+              onChange={(e) => setOnlyPublished(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-white/10 bg-slate-950 text-[#4ade80] accent-[#4ade80] cursor-pointer focus:ring-0"
+            />
+            <span>Published Only</span>
+          </label>
+
+          <div className="flex items-center bg-slate-900/30 border border-white/5 rounded-xl transition-all duration-200 overflow-hidden">
+            <div className="flex items-center justify-center pl-3 py-1.5 pr-2 border-r border-white/5 hover:bg-white/[0.02]">
+              <input
+                type="checkbox"
+                checked={excludeIgnored}
+                onChange={(e) => setExcludeIgnored(e.target.checked)}
+                className="h-3.5 w-3.5 rounded border-white/10 bg-slate-950 text-[#4ade80] accent-[#4ade80] cursor-pointer focus:ring-0"
+                title="Toggle filter: Hide/Show Ignored items"
+              />
+            </div>
+            <button
+              onClick={() => setShowIgnoreColumn(!showIgnoreColumn)}
+              className={`px-3 py-1.5 text-xs font-semibold transition-all duration-200 hover:text-white cursor-pointer select-none flex items-center gap-1.5 ${
+                showIgnoreColumn ? "bg-[#4ade80]/10 text-emerald-400 font-bold" : "text-slate-400 hover:bg-white/[0.02]"
+              }`}
+              title="Click to toggle visibility of the Ignore column"
+            >
+              <span>Hide Ignored</span>
+              {showIgnoreColumn ? (
+                <span className="text-[8px] font-black uppercase tracking-wider bg-[#4ade80]/20 text-[#4ade80] px-1.5 py-0.5 rounded border border-[#4ade80]/30 select-none">
+                  Col ON
+                </span>
+              ) : (
+                <span className="text-[8px] font-black uppercase tracking-wider bg-slate-800 text-slate-500 px-1.5 py-0.5 rounded border border-white/5 select-none">
+                  Col OFF
+                </span>
+              )}
+            </button>
           </div>
+
+          <label className="flex items-center gap-2 hover:text-white cursor-pointer select-none bg-slate-900/30 border border-white/5 rounded-xl px-3 py-1.5 transition-all duration-200">
+            <input
+              type="checkbox"
+              checked={showStagedOnly}
+              onChange={(e) => setShowStagedOnly(e.target.checked)}
+              className="h-3.5 w-3.5 rounded border-white/10 bg-slate-950 text-[#4ade80] accent-[#4ade80] cursor-pointer focus:ring-0"
+            />
+            <span>Staged Only</span>
+          </label>
+        </div>
+      </div>
 
           {/* Uncheck All Option */}
           {!isOptimizedState && selectedForOptimization.size > 0 && (
@@ -900,7 +969,6 @@ export function SeoDashboardContent({ credentials, initialTab = "product" }: { c
               <span>Uncheck All ({selectedForOptimization.size})</span>
             </button>
           )}
-        </div>
 
       {/* Main Grid View */}
       {loading ? (
@@ -932,6 +1000,7 @@ export function SeoDashboardContent({ credentials, initialTab = "product" }: { c
                 <th className="px-6 py-4 w-32">Type</th>
                 <th className="px-6 py-4 w-28 text-center">Status</th>
                 <th className="px-6 py-4 w-32 text-center">Staged</th>
+                {showIgnoreColumn && <th className="px-6 py-4 w-28 text-center">Ignore</th>}
                 <th className="px-6 py-4 w-36 text-center cursor-pointer hover:text-white transition-colors" onClick={(e) => {
                   e.stopPropagation();
                   if (isOptimizedState) {
@@ -1060,6 +1129,27 @@ export function SeoDashboardContent({ credentials, initialTab = "product" }: { c
                           <span className="text-[10px] text-slate-500 font-semibold">Aligned</span>
                         )}
                       </td>
+
+                      {/* Ignore Toggle Column */}
+                      {showIgnoreColumn && (
+                        <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => toggleItemIgnore(rec.post_id)}
+                            className={`p-2 bg-slate-900 border rounded-xl transition-all duration-200 cursor-pointer inline-flex items-center justify-center ${
+                              rec.ignored
+                                ? "border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/15"
+                                : "border-white/5 hover:border-white/10 hover:bg-slate-800"
+                            }`}
+                            title={rec.ignored ? "Restore item to Active list" : "Ignore item"}
+                          >
+                            {rec.ignored ? (
+                              <EyeOff className="h-4.5 w-4.5 text-rose-400" />
+                            ) : (
+                              <Eye className="h-4.5 w-4.5 text-slate-400 hover:text-white" />
+                            )}
+                          </button>
+                        </td>
+                      )}
 
                       {/* Selection / Approval Checkbox */}
                       <td className="px-6 py-4 text-center" onClick={(e) => e.stopPropagation()}>
