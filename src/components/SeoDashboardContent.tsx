@@ -131,8 +131,8 @@ function calculateSimulatedScore(title: string, description: string, keyword: st
   return Math.min(score, 100);
 }
 
-export function SeoDashboardContent({ credentials }: { credentials: CredentialState[] }) {
-  const [activeTab, setActiveTab] = useState<"product" | "page" | "post" | "settings">("product");
+export function SeoDashboardContent({ credentials, initialTab = "product" }: { credentials: CredentialState[], initialTab?: "product" | "page" | "post" | "settings" }) {
+  const [activeTab, setActiveTab] = useState<"product" | "page" | "post" | "settings">(initialTab);
   const [langFilter, setLangFilter] = useState<"all" | "fr" | "en" | "es">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [state, setState] = useState<any>({
@@ -497,6 +497,224 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
     });
   };
 
+  if (activeTab === "settings") {
+    return (
+      <div className="space-y-6">
+        {loading ? (
+          <div className="flex h-96 flex-col items-center justify-center gap-3">
+            <RotateCw className="h-8 w-8 animate-spin text-[#4ade80]" />
+            <p className="text-sm font-medium text-slate-400">Loading MaquiFit SEO Control Center...</p>
+          </div>
+        ) : (
+          <div className="grid gap-6 xl:grid-cols-2 animate-in fade-in duration-300">
+            {/* Scheduler Settings Card */}
+            <Card className="border-white/10 bg-slate-950/45 backdrop-blur-2xl shadow-xl rounded-3xl">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <Clock className="h-5 w-5 text-emerald-400" />
+                  Cron Schedule Config
+                </CardTitle>
+                <CardDescription className="text-slate-400">
+                  Setup periodic tasks for the Hermes agent to pull, analyze and propose SEO updates automatically.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6 text-slate-300">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Agent Schedule Frequency</label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { id: "daily", label: "Daily Sync" },
+                      { id: "weekly", label: "Weekly Sync" },
+                      { id: "manual", label: "Manual Only" },
+                    ].map((sched) => (
+                      <button
+                        key={sched.id}
+                        onClick={() => saveSettings({ ...settings, schedule: sched.id })}
+                        className={`px-4 py-3 rounded-2xl border text-sm font-bold text-center transition-all cursor-pointer ${
+                          settings.schedule === sched.id
+                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                            : "border-white/5 bg-slate-900/40 text-slate-400 hover:border-white/10"
+                        }`}
+                      >
+                        {sched.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {settings.schedule === "daily" && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Trigger Daily At Hour</label>
+                    <select
+                      value={settings.dailyHour}
+                      onChange={(e) => saveSettings({ ...settings, dailyHour: Number(e.target.value) })}
+                      className="w-full bg-slate-900 border border-white/10 rounded-2xl px-4 py-2.5 text-sm text-white focus:outline-none"
+                    >
+                      {Array.from({ length: 24 }).map((_, i) => (
+                        <option key={i} value={i}>
+                          {i.toString().padStart(2, "0")}:00 ({i >= 12 ? "PM" : "AM"})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Daily Update Target Types</label>
+                  <div className="grid gap-3">
+                    {[
+                      { id: "product", label: "E-Commerce Products", desc: "WooCommerce products (FR/EN/ES catalog items)" },
+                      { id: "page", label: "Static Marketing Pages", desc: "Core navigation landing pages" },
+                      { id: "post", label: "Blog Posts & Articles", desc: "Multilingual blog content" },
+                    ].map((target) => {
+                      const isChecked = settings.categories.includes(target.id);
+                      return (
+                        <div
+                          key={target.id}
+                          onClick={() => {
+                            const updatedCats = isChecked
+                              ? settings.categories.filter((c: string) => c !== target.id)
+                              : [...settings.categories, target.id];
+                            saveSettings({ ...settings, categories: updatedCats });
+                          }}
+                          className={`flex items-start gap-4 rounded-2xl border p-4 cursor-pointer transition-colors duration-200 ${
+                            isChecked ? "border-emerald-400/20 bg-emerald-400/5" : "border-white/5 bg-slate-900/10 hover:bg-slate-900/35"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            readOnly
+                            className="mt-1 h-4 w-4 rounded border-slate-700 bg-slate-900 text-emerald-500 accent-emerald-500 cursor-pointer focus:ring-0 focus:ring-offset-0"
+                          />
+                          <div className="min-w-0">
+                            <div className="text-sm font-bold text-white">{target.label}</div>
+                            <div className="text-xs text-slate-400 mt-1">{target.desc}</div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="space-y-2 mt-4">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Default Optimization Score Threshold</label>
+                  <div className="rounded-2xl border border-white/5 bg-slate-900/10 p-4 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-bold text-white">Optimize Published Items Under:</span>
+                      <span className="text-sm font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-xl">
+                        {settings.optimizeScoreThreshold ?? 80}%
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="range"
+                        min="10"
+                        max="100"
+                        value={settings.optimizeScoreThreshold ?? 80}
+                        onChange={(e) => saveSettings({ ...settings, optimizeScoreThreshold: Number(e.target.value) })}
+                        className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-400 focus:outline-none"
+                      />
+                    </div>
+                    <p className="text-[11px] leading-relaxed text-slate-400 select-none">
+                      After a content pull, the optimization checkbox is automatically checked only for live published items whose current RankMath SEO score is strictly below this threshold.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Connection Readiness Card */}
+            <Card className="border-white/10 bg-slate-950/45 backdrop-blur-2xl shadow-xl rounded-3xl">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <ShieldCheck className="h-5 w-5 text-emerald-400" />
+                  Connection Readiness
+                </CardTitle>
+                <CardDescription className="text-slate-400">
+                  Connection check on credentials needed to perform the pull and push workflows.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {credentials.map((credential) => (
+                    <div
+                      key={credential.label}
+                      className={`rounded-2xl border p-4 transition-colors duration-200 ${
+                        credential.present
+                          ? "border-emerald-400/20 bg-emerald-400/5"
+                          : "border-amber-400/20 bg-amber-400/5"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="text-sm font-bold text-white">{credential.label}</div>
+                          <div className="mt-1 text-xs leading-relaxed text-slate-400">{credential.helper}</div>
+                        </div>
+                        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${credential.present ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-300"}`}>
+                          {credential.present ? <Check className="h-4.5 w-4.5" /> : <AlertCircle className="h-4.5 w-4.5" />}
+                        </div>
+                      </div>
+                      <div className="mt-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
+                        {credential.present ? "Configured" : "Missing"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Reset Data Card */}
+            <Card className="border-rose-500/10 bg-slate-950/45 backdrop-blur-2xl shadow-xl rounded-3xl xl:col-span-2 mt-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-white">
+                  <Trash2 className="h-5 w-5 text-rose-400" />
+                  Reset Workflow State
+                </CardTitle>
+                <CardDescription className="text-slate-400">
+                  Permanently purge all pulled and optimized local data, allowing you to start a fresh synchronization.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="text-xs text-slate-400 max-w-xl leading-relaxed">
+                  This action will delete `workflow_state.json`, `inventory.json`, `translations.json`, and all cache files in your vault. Your cron settings will be preserved, but the dashboard data will be completely cleared.
+                </div>
+                <button
+                  onClick={async () => {
+                    const confirmReset = window.confirm("Are you sure you want to delete all cached inventory and SEO recommendations? This cannot be undone.");
+                    if (!confirmReset) return;
+                    
+                    try {
+                      showNotification("info", "Resetting data store...");
+                      const res = await fetch("/api/seo/refresh", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ action: "reset" })
+                      });
+                      
+                      if (res.ok) {
+                        showNotification("success", "Workflow state successfully reset to zero.");
+                        setSelectedForOptimization(new Set());
+                        await fetchState();
+                      } else {
+                        showNotification("error", "Failed to reset data.");
+                      }
+                    } catch (err: any) {
+                      showNotification("error", err.message || "Error resetting data.");
+                    }
+                  }}
+                  className="px-5 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 rounded-2xl text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer whitespace-nowrap"
+                >
+                  Reset Dashboard Data
+                </button>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
 
@@ -519,7 +737,6 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
           </div>
 
           {/* Search bar */}
-          {activeTab !== "settings" && (
             <div className="flex items-center gap-4 flex-1 md:flex-initial">
               <div className="relative flex-1 md:w-80">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 pointer-events-none" />
@@ -543,7 +760,6 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
                 <span className="whitespace-nowrap">Published Only</span>
               </label>
             </div>
-          )}
         </div>
 
         {/* Action Controls & Pipeline Status */}
@@ -650,7 +866,6 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
             { id: "product", label: "Products", icon: ShoppingBag },
             { id: "page", label: "Pages", icon: FileText },
             { id: "post", label: "Posts", icon: Layers },
-            { id: "settings", label: "Cron & Settings", icon: Settings2 },
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -666,240 +881,32 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
               >
                 <Icon className="h-4.5 w-4.5" />
                 {tab.label}
-                {tab.id !== "settings" && (
-                  <span className={`ml-1.5 px-2 py-0.5 text-[10px] rounded-full font-black ${
-                    isActive ? "bg-[#4ade80]/15 text-[#4ade80]" : "bg-slate-900 text-slate-500"
-                  }`}>
-                    {(state.recommendations || []).filter((r: any) => r.content_type === tab.id && (langFilter === "all" || r.language === langFilter) && (!onlyPublished || r.status === "publish")).length}
-                  </span>
-                )}
+                <span className={`ml-1.5 px-2 py-0.5 text-[10px] rounded-full font-black ${
+                  isActive ? "bg-[#4ade80]/15 text-[#4ade80]" : "bg-slate-900 text-slate-500"
+                }`}>
+                  {(state.recommendations || []).filter((r: any) => r.content_type === tab.id && (langFilter === "all" || r.language === langFilter) && (!onlyPublished || r.status === "publish")).length}
+                </span>
               </button>
             );
           })}
-        </div>
+          </div>
 
-        {/* Uncheck All Option */}
-        {!isOptimizedState && activeTab !== "settings" && selectedForOptimization.size > 0 && (
-          <button
-            onClick={() => setSelectedForOptimization(new Set())}
-            className="text-xs font-black uppercase tracking-wider text-rose-400 hover:text-rose-300 transition-colors px-4 py-2 cursor-pointer flex items-center gap-1.5"
-          >
-            <span>Uncheck All ({selectedForOptimization.size})</span>
-          </button>
-        )}
-      </div>
+          {/* Uncheck All Option */}
+          {!isOptimizedState && selectedForOptimization.size > 0 && (
+            <button
+              onClick={() => setSelectedForOptimization(new Set())}
+              className="text-xs font-black uppercase tracking-wider text-rose-400 hover:text-rose-300 transition-colors px-4 py-2 cursor-pointer flex items-center gap-1.5"
+            >
+              <span>Uncheck All ({selectedForOptimization.size})</span>
+            </button>
+          )}
+        </div>
 
       {/* Main Grid View */}
       {loading ? (
         <div className="flex h-96 flex-col items-center justify-center gap-3">
           <RotateCw className="h-8 w-8 animate-spin text-[#4ade80]" />
           <p className="text-sm font-medium text-slate-400">Loading MaquiFit SEO Control Center...</p>
-        </div>
-      ) : activeTab === "settings" ? (
-        /* Settings Tab View */
-        <div className="grid gap-6 xl:grid-cols-2">
-          {/* Scheduler Settings Card */}
-          <Card className="border-white/10 bg-slate-950/45 backdrop-blur-2xl shadow-xl rounded-3xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <Clock className="h-5 w-5 text-emerald-400" />
-                Cron Schedule Config
-              </CardTitle>
-              <CardDescription className="text-slate-400">
-                Setup periodic tasks for the Hermes agent to pull, analyze and propose SEO updates automatically.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6 text-slate-300">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Agent Schedule Frequency</label>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { id: "daily", label: "Daily Sync" },
-                    { id: "weekly", label: "Weekly Sync" },
-                    { id: "manual", label: "Manual Only" },
-                  ].map((sched) => (
-                    <button
-                      key={sched.id}
-                      onClick={() => saveSettings({ ...settings, schedule: sched.id })}
-                      className={`px-4 py-3 rounded-2xl border text-sm font-bold text-center transition-all cursor-pointer ${
-                        settings.schedule === sched.id
-                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
-                          : "border-white/5 bg-slate-900/40 text-slate-400 hover:border-white/10"
-                      }`}
-                    >
-                      {sched.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {settings.schedule === "daily" && (
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Trigger Daily At Hour</label>
-                  <select
-                    value={settings.dailyHour}
-                    onChange={(e) => saveSettings({ ...settings, dailyHour: Number(e.target.value) })}
-                    className="w-full bg-slate-900 border border-white/10 rounded-2xl px-4 py-2.5 text-sm text-white focus:outline-none"
-                  >
-                    {Array.from({ length: 24 }).map((_, i) => (
-                      <option key={i} value={i}>
-                        {i.toString().padStart(2, "0")}:00 ({i >= 12 ? "PM" : "AM"})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Daily Update Target Types</label>
-                <div className="grid gap-3">
-                  {[
-                    { id: "product", label: "E-Commerce Products", desc: "WooCommerce products (FR/EN/ES catalog items)" },
-                    { id: "page", label: "Static Marketing Pages", desc: "Core navigation landing pages" },
-                    { id: "post", label: "Blog Posts & Articles", desc: "Multilingual blog content" },
-                  ].map((target) => {
-                    const isChecked = settings.categories.includes(target.id);
-                    return (
-                      <div
-                        key={target.id}
-                        onClick={() => {
-                          const updatedCats = isChecked
-                            ? settings.categories.filter((c: string) => c !== target.id)
-                            : [...settings.categories, target.id];
-                          saveSettings({ ...settings, categories: updatedCats });
-                        }}
-                        className={`flex items-start gap-4 rounded-2xl border p-4 cursor-pointer transition-colors duration-200 ${
-                          isChecked ? "border-emerald-400/20 bg-emerald-400/5" : "border-white/5 bg-slate-900/10 hover:bg-slate-900/35"
-                        }`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          readOnly
-                          className="mt-1 h-4 w-4 rounded border-slate-700 bg-slate-900 text-emerald-500 accent-emerald-500 cursor-pointer focus:ring-0 focus:ring-offset-0"
-                        />
-                        <div className="min-w-0">
-                          <div className="text-sm font-bold text-white">{target.label}</div>
-                          <div className="text-xs text-slate-400 mt-1">{target.desc}</div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <div className="space-y-2 mt-4">
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Default Optimization Score Threshold</label>
-                <div className="rounded-2xl border border-white/5 bg-slate-900/10 p-4 space-y-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-bold text-white">Optimize Published Items Under:</span>
-                    <span className="text-sm font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-xl">
-                      {settings.optimizeScoreThreshold ?? 80}%
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <input
-                      type="range"
-                      min="10"
-                      max="100"
-                      value={settings.optimizeScoreThreshold ?? 80}
-                      onChange={(e) => saveSettings({ ...settings, optimizeScoreThreshold: Number(e.target.value) })}
-                      className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-400 focus:outline-none"
-                    />
-                  </div>
-                  <p className="text-[11px] leading-relaxed text-slate-400 select-none">
-                    After a content pull, the optimization checkbox is automatically checked only for live published items whose current RankMath SEO score is strictly below this threshold.
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Connection Readiness Card */}
-          <Card className="border-white/10 bg-slate-950/45 backdrop-blur-2xl shadow-xl rounded-3xl">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <ShieldCheck className="h-5 w-5 text-emerald-400" />
-                Connection Readiness
-              </CardTitle>
-              <CardDescription className="text-slate-400">
-                Connection check on credentials needed to perform the pull and push workflows.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {credentials.map((credential) => (
-                  <div
-                    key={credential.label}
-                    className={`rounded-2xl border p-4 transition-colors duration-200 ${
-                      credential.present
-                        ? "border-emerald-400/20 bg-emerald-400/5"
-                        : "border-amber-400/20 bg-amber-400/5"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="text-sm font-bold text-white">{credential.label}</div>
-                        <div className="mt-1 text-xs leading-relaxed text-slate-400">{credential.helper}</div>
-                      </div>
-                      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${credential.present ? "bg-emerald-400/10 text-emerald-300" : "bg-amber-400/10 text-amber-300"}`}>
-                        {credential.present ? <Check className="h-4.5 w-4.5" /> : <AlertCircle className="h-4.5 w-4.5" />}
-                      </div>
-                    </div>
-                    <div className="mt-3 text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">
-                      {credential.present ? "Configured" : "Missing"}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Reset Data Card */}
-          <Card className="border-rose-500/10 bg-slate-950/45 backdrop-blur-2xl shadow-xl rounded-3xl xl:col-span-2 mt-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-white">
-                <Trash2 className="h-5 w-5 text-rose-400" />
-                Reset Workflow State
-              </CardTitle>
-              <CardDescription className="text-slate-400">
-                Permanently purge all pulled and optimized local data, allowing you to start a fresh synchronization.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="text-xs text-slate-400 max-w-xl leading-relaxed">
-                This action will delete `workflow_state.json`, `inventory.json`, `translations.json`, and all cache files in your vault. Your cron settings will be preserved, but the dashboard data will be completely cleared.
-              </div>
-              <button
-                onClick={async () => {
-                  const confirmReset = window.confirm("Are you sure you want to delete all cached inventory and SEO recommendations? This cannot be undone.");
-                  if (!confirmReset) return;
-                  
-                  try {
-                    showNotification("info", "Resetting data store...");
-                    const res = await fetch("/api/seo/refresh", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ action: "reset" })
-                    });
-                    
-                    if (res.ok) {
-                      showNotification("success", "Workflow state successfully reset to zero.");
-                      setSelectedForOptimization(new Set());
-                      await fetchState();
-                    } else {
-                      showNotification("error", "Failed to reset data.");
-                    }
-                  } catch (err: any) {
-                    showNotification("error", err.message || "Error resetting data.");
-                  }
-                }}
-                className="px-5 py-2.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/20 rounded-2xl text-xs font-bold uppercase tracking-wider transition-all duration-200 cursor-pointer whitespace-nowrap"
-              >
-                Reset Dashboard Data
-              </button>
-            </CardContent>
-          </Card>
         </div>
       ) : filteredRecs.length === 0 ? (
         /* Empty State */
@@ -1185,7 +1192,7 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
       )}
 
       {/* Floating Action Bar (Approvals / Bulk Operations) */}
-      {activeTab !== "settings" && filteredRecs.length > 0 && (
+      {filteredRecs.length > 0 && (
         <div className="sticky bottom-6 z-40 rounded-3xl border border-white/10 bg-slate-950/80 p-4 backdrop-blur-2xl shadow-[0_20px_50px_rgba(2,6,23,0.9)] flex justify-between items-center select-none animate-in fade-in slide-in-from-bottom-4 duration-300">
           <div className="flex items-center gap-2">
             <CheckCircle className="h-5 w-5 text-emerald-400" />

@@ -39,10 +39,22 @@ export function DashboardNavBar({ adminName }: DashboardNavBarProps) {
     };
   }, []);
 
+  const [isSeoExpanded, setIsSeoExpanded] = useState(pathname.startsWith("/dashboard/seo"));
+
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/dashboard/kanban", label: "Kanban", icon: Rows3 },
-    { href: "/dashboard/seo", label: "MaquiFit SEO", icon: Search },
+    { 
+      label: "MaquiFit SEO", 
+      icon: Search,
+      isCategory: true,
+      items: [
+        { href: "/dashboard/seo/dashboard", label: "Dashboard" },
+        { href: "/dashboard/seo", label: "Meta data" },
+        { href: "/dashboard/seo/image", label: "Image SEO" },
+        { href: "/dashboard/seo/settings", label: "Settings" },
+      ]
+    },
     { href: "/dashboard/vault", label: "Vault", icon: Archive },
     { href: "/dashboard/services", label: "Services", icon: ServerCog },
   ];
@@ -52,7 +64,7 @@ export function DashboardNavBar({ adminName }: DashboardNavBarProps) {
       <aside className="fixed bottom-6 left-8 top-6 z-40 hidden w-64 flex-col rounded-[1.75rem] border border-white/10 bg-slate-950/45 p-4 shadow-[0_24px_70px_rgba(2,6,23,0.78),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-2xl lg:flex select-none">
       <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-[#00d4ff]/60 to-transparent" />
       <div className="pointer-events-none absolute inset-y-10 right-0 w-px bg-gradient-to-b from-transparent via-[#8b5cf6]/35 to-transparent" />
-
+ 
       <div className="mb-8 flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 p-3 shadow-[0_12px_30px_rgba(2,6,23,0.35)]">
         <div className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-2xl border border-[#00d4ff]/25 bg-[#00d4ff]/10 text-[#00d4ff] shadow-[0_0_18px_rgba(0,212,255,0.16)]">
           <img src={AGENT_AVATAR} alt={`${AGENT_NAME} avatar`} className="h-7 w-7 object-cover rounded-xl filter drop-shadow-[0_0_8px_rgba(0,212,255,0.5)]" />
@@ -64,13 +76,57 @@ export function DashboardNavBar({ adminName }: DashboardNavBarProps) {
         </div>
       </div>
 
-      <nav className="space-y-2" aria-label="Dashboard navigation">
-        {navItems.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href;
+      <nav className="space-y-2 overflow-y-auto" aria-label="Dashboard navigation">
+        {navItems.map((item) => {
+          if (item.isCategory) {
+            const isSeoActive = pathname.startsWith("/dashboard/seo");
+            return (
+              <div key={item.label} className="space-y-1">
+                <button
+                  type="button"
+                  onClick={() => setIsSeoExpanded(!isSeoExpanded)}
+                  className={`group flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-bold text-white shadow-[0_0_24px_rgba(0,212,255,0.08)] transition-all duration-300 hover:border-[#8b5cf6]/40 hover:bg-[#8b5cf6]/10 ${
+                    isSeoActive ? "border-[#00d4ff]/20 bg-[#00d4ff]/5" : "border-white/10 bg-black/20"
+                  }`}
+                >
+                  <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#00d4ff]/20 bg-slate-950/70 text-[#00d4ff] transition-colors group-hover:text-[#c084fc]">
+                    <item.icon className="h-4 w-4" />
+                  </span>
+                  <span className="flex-1 text-left">{item.label}</span>
+                  <span className={`text-[10px] text-slate-500 transition-transform duration-200 ${isSeoExpanded ? "rotate-180" : ""}`}>▼</span>
+                </button>
+                
+                {isSeoExpanded && (
+                  <div className="pl-6 pt-1 pb-1 ml-4 border-l border-white/10 space-y-1 animate-in slide-in-from-top-2 duration-200">
+                    {item.items.map((subItem) => {
+                      const isSubActive = pathname === subItem.href;
+                      return (
+                        <Link
+                          key={subItem.label}
+                          href={subItem.href}
+                          className={`flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold transition-all duration-200 ${
+                            isSubActive 
+                              ? "text-[#00d4ff] bg-[#00d4ff]/10" 
+                              : "text-slate-400 hover:text-white hover:bg-white/[0.03]"
+                          }`}
+                        >
+                          <span className="flex-1">{subItem.label}</span>
+                          {isSubActive && <span className="h-1.5 w-1.5 rounded-full bg-[#00d4ff] shadow-[0_0_8px_rgba(0,212,255,0.8)]" />}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          const Icon = item.icon;
+          const active = pathname === item.href;
           return (
             <Link
-              key={label}
-              href={href}
+              key={item.label}
+              href={item.href!}
               className={`group flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm font-bold text-white shadow-[0_0_24px_rgba(0,212,255,0.08)] transition-all duration-300 hover:border-[#8b5cf6]/40 hover:bg-[#8b5cf6]/10 ${
                 active ? "border-[#00d4ff]/20 bg-[#00d4ff]/10" : "border-white/10 bg-black/20"
               }`}
@@ -78,7 +134,7 @@ export function DashboardNavBar({ adminName }: DashboardNavBarProps) {
               <span className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#00d4ff]/20 bg-slate-950/70 text-[#00d4ff] transition-colors group-hover:text-[#c084fc]">
                 <Icon className="h-4 w-4" />
               </span>
-              <span className="flex-1">{label}</span>
+              <span className="flex-1">{item.label}</span>
               {active && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_10px_rgba(52,211,153,0.9)]" />}
             </Link>
           );
@@ -145,18 +201,20 @@ export function DashboardNavBar({ adminName }: DashboardNavBarProps) {
         )}
 
         <div className="grid grid-cols-[1fr_1fr_1fr_1fr_1.2fr] gap-2">
-          {navItems.map(({ href, label, icon: Icon }) => {
-            const active = pathname === href;
+          {navItems.map((item) => {
+            const href = item.isCategory ? "/dashboard/seo" : item.href!;
+            const Icon = item.icon;
+            const active = item.isCategory ? pathname.startsWith("/dashboard/seo") : pathname === href;
             return (
               <Link
-                key={label}
+                key={item.label}
                 href={href}
                 className={`flex items-center justify-center gap-2 rounded-2xl border px-3 py-3 text-xs font-bold text-white transition-all duration-300 ${
                   active ? "border-[#00d4ff]/20 bg-[#00d4ff]/10" : "border-white/10 bg-black/30"
                 }`}
               >
                 <Icon className={`h-4 w-4 ${active ? "text-[#00d4ff]" : "text-slate-400 group-hover:text-white"}`} />
-                <span className="hidden sm:inline">{label}</span>
+                <span className="hidden sm:inline">{item.label}</span>
               </Link>
             );
           })}
