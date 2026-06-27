@@ -6,6 +6,7 @@ import { getAuthCookieName, verifyAuthToken } from "@/lib/auth";
 import { ThreeBackground } from "@/components/ThreeBackground";
 import { DashboardNavBar } from "@/components/DashboardNavBar";
 import { HeaderTelemetryDeck } from "@/components/HeaderTelemetryDeck";
+import { SeoDashboardAnalytics } from "@/components/SeoDashboardAnalytics";
 import { AGENT_NAME } from "@/lib/brand";
 
 export const dynamic = "force-dynamic";
@@ -77,16 +78,7 @@ export default async function SeoDashboardPage() {
             </div>
           </header>
 
-          {/* Dashboard Placeholder View */}
-          <div className="rounded-3xl border border-white/10 bg-slate-950/45 p-12 text-center backdrop-blur-2xl shadow-[0_20px_50px_rgba(2,6,23,0.7)] flex flex-col items-center justify-center gap-4 select-none animate-in fade-in duration-300">
-            <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-[#00d4ff]/35 bg-[#00d4ff]/10 text-[#00d4ff] shadow-[0_0_20px_rgba(0,212,255,0.25)]">
-              <LayoutGrid className="h-8 w-8 text-[#00d4ff]" />
-            </div>
-            <h3 className="text-xl font-bold text-white tracking-wide">SEO Analytics Dashboard</h3>
-            <p className="max-w-md text-sm leading-relaxed text-slate-400">
-              MaquiFit SEO Analytics & Insights Dashboard coming soon. Live keyword tracking, search volume trends, and click performance visualization will be presented here.
-            </p>
-          </div>
+          <SeoDashboardAnalytics />
         </div>
       </main>
     </>
