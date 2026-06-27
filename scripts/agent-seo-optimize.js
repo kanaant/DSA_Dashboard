@@ -81,7 +81,7 @@ async function optimizeItem(item) {
     throw new Error("HERMES_AGENT_API_KEY environment variable is missing.");
   }
 
-  const systemPrompt = `You are an expert SEO copywriter and strategist. Optimize the metadata for the website MaquiFit (an e-commerce brand for activewear, fitness gear, and lifestyle).
+  const systemPrompt = `You are an expert SEO copywriter and strategist. Optimize the metadata for the website MaquiFit (an e-commerce brand for maqui berry products, superfoods, natural health supplements, organic food products).
 For the provided page/product/post, select the most appropriate trending focus keyword.
 Then, write a highly optimized SEO Title (maximum 60 characters) and a compelling Meta Description (maximum 160 characters) in the page's language.
 You must output ONLY a JSON object containing the keys "seo_title", "meta_description", and "focus_keyword" without any markdown wrapping or conversational text. Example:
@@ -199,7 +199,7 @@ async function main() {
 
       try {
         const optimized = await optimizeItem(rec);
-        
+
         // Update proposed fields
         rec.proposed.rank_math_title = optimized.seo_title;
         rec.proposed.rank_math_description = optimized.meta_description;
@@ -225,7 +225,7 @@ async function main() {
         if (!rec.notes.includes("agent-optimized")) {
           rec.notes.push("agent-optimized");
         }
-        
+
         console.log(`Optimized ${rec.title}: Title="${optimized.seo_title}"`);
       } catch (err) {
         console.error(`Error optimizing item ${rec.post_id}:`, err.message);

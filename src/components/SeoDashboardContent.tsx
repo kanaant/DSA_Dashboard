@@ -367,13 +367,16 @@ export function SeoDashboardContent({ credentials }: { credentials: CredentialSt
     }
 
     setPushing(true);
-    showNotification("info", `Pushing ${approvedCount} approved updates back to WooCommerce/WordPress...`);
+    showNotification("info", `Pushing ${approvedCount} approved updates via SSH to WordPress...`);
     try {
       const res = await fetch("/api/seo/push", { method: "POST" });
       const data = await res.json();
       if (res.ok && data.success) {
-        showNotification("success", `Successfully applied and verified ${data.result.applied} updates!`);
+        showNotification("success", `Successfully pushed ${data.result.applied} of ${data.result.total} updates to the live site!`);
         // Refresh local state to load updated WordPress settings
+        await fetchState();
+      } else if (res.ok && !data.success && data.result) {
+        showNotification("error", `Pushed ${data.result.applied} but ${data.result.failed} failed. Check server logs.`);
         await fetchState();
       } else {
         showNotification("error", data.error || "Failed to push updates to live site.");
